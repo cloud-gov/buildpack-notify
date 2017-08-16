@@ -1,0 +1,3 @@
+package: github.com/18F/cg-buildpack-notify
+import:
+- package: github.com/cloudfoundry-community/go-cfclient

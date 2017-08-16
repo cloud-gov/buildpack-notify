@@ -1,0 +1,58 @@
+hash: 167c7f552ad0e37a76a88025c03acafaee9a9d37d3ac42be6164f9464b9cd3d8
+updated: 2017-08-16T13:46:46.915479538-04:00
+imports:
+- name: github.com/cloudfoundry-community/go-cfclient
+  version: dbe382d68b57a2345f60b71935eb6e8cfa7e5895
+- name: github.com/golang/protobuf
+  version: 874264fbbb43f4d91e999fecb4b40143ed611400
+  subpackages:
+  - proto
+  - proto/testdata
+  - ptypes/any
+- name: github.com/pkg/errors
+  version: c605e284fe17294bda444b34710735b29d1a9d90
+- name: golang.org/x/net
+  version: db8e4de5b2d6653f66aea53094624468caad15d2
+  subpackages:
+  - context
+  - context/ctxhttp
+- name: golang.org/x/oauth2
+  version: b5adcc2dcdf009d0391547edc6ecbaff889f5bb9
+  subpackages:
+  - clientcredentials
+  - internal
+  - jws
+  - jwt
+- name: google.golang.org/appengine
+  version: e234e71924d4aa52444bc76f2f831f13fa1eca60
+  subpackages:
+  - datastore
+  - internal
+  - internal/app_identity
+  - internal/base
+  - internal/blobstore
+  - internal/capability
+  - internal/channel
+  - internal/datastore
+  - internal/image
+  - internal/log
+  - internal/mail
+  - internal/memcache
+  - internal/modules
+  - internal/remote_api
+  - internal/search
+  - internal/socket
+  - internal/system
+  - internal/taskqueue
+  - internal/urlfetch
+  - internal/user
+  - internal/xmpp
+  - log
+  - taskqueue
+  - urlfetch
+  - user
+- name: google.golang.org/cloud
+  version: 06f11fffc537c4aef126d9fd3a92e2d7968f118f
+  subpackages:
+  - compute/metadata
+testImports: []
