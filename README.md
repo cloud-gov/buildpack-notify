@@ -1,6 +1,8 @@
 # cg-buildpack-notify
 
-## Local Setup using PCFDev
+Toward proactively encouraging cloud.gov customers to restage their apps so they can benefit from buildpack updates.
+
+## Local setup using PCFDev
 ```sh
 docker run governmentpaas/cf-uaac \
   /bin/sh -c '
