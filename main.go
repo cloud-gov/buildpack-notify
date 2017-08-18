@@ -26,7 +26,9 @@ func main() {
 		log.Fatalf("Unable to create client. Error: %s", err.Error())
 	}
 	apps, buildpacks := getAppsAndBuildpacks(client)
-	findOutdatedApps(apps, buildpacks)
+	outdatedApps := findOutdatedApps(apps, buildpacks)
+	_ = findOwnersOfApps(outdatedApps)
+
 }
 
 func listBuildpacks(c *cfclient.Client) ([]cfclient.BuildpackResource, error) {
@@ -115,16 +117,51 @@ func isAppUsingOutdatedBuildpack(app cfclient.App, buildpack *cfclient.Buildpack
 	return timeOfLastBuildpackUpdate.After(timeOfLastAppRestage)
 }
 
-func findOutdatedApps(apps []cfclient.App, buildpacks map[string]cfclient.BuildpackResource) {
+func findOwnersOfApps(apps []cfclient.App) map[string][]cfclient.App {
+	// Mapping of users to the apps.
+	owners := make(map[string][]cfclient.App)
+	for _, app := range apps {
+		// Get the space
+		space, err := app.Space()
+		if err != nil {
+			log.Fatalf("Unable to get space of app %s. Error: %s", app.Name, err.Error())
+		}
+		// Get the list of space managers and space developers for the app.
+		usersWithSpaceRoles, err := space.Roles()
+		if err != nil {
+			log.Fatalf("Unable to get roles of space %s. Error: %s", space.Name, err.Error())
+		}
+		for _, userWithSpaceRoles := range usersWithSpaceRoles {
+			if spaceUserHasRoles(userWithSpaceRoles, "space_developer", "space_manager") {
+				owners[userWithSpaceRoles.Username] = append(owners[userWithSpaceRoles.Username], app)
+			}
+		}
+	}
+	return owners
+}
+
+func findOutdatedApps(apps []cfclient.App, buildpacks map[string]cfclient.BuildpackResource) (outdatedApps []cfclient.App) {
 	for _, app := range apps {
 		yes, buildpack := isAppUsingSupportedBuildpack(app, buildpacks)
 		if !yes {
 			continue
 		}
 		// If the app is using a supported buildpack, check if app is using an outdated buildpack.
-		appIsOutdated := isAppUsingOutdatedBuildpack(app, buildpack)
-		if appIsOutdated {
-			// Get the list of space managers and space developers for the app.
+		if appIsOutdated := isAppUsingOutdatedBuildpack(app, buildpack); !appIsOutdated {
+			continue
+		}
+		outdatedApps = append(outdatedApps, app)
+	}
+	return
+}
+
+func spaceUserHasRoles(user cfclient.SpaceRole, roles ...string) bool {
+	for _, roleOfUser := range user.SpaceRoles {
+		for _, role := range roles {
+			if role == roleOfUser {
+				return true
+			}
 		}
 	}
+	return false
 }
