@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"encoding/json"
 	"io/ioutil"
 	"log"
@@ -14,7 +15,26 @@ import (
 
 // TODO: handle errors centrally.
 
+type emailConfig struct {
+	from     string
+	host     string
+	password string
+	port     string
+	user     string
+}
+
 func main() {
+	templates, err := initTemplates()
+	if err != nil {
+		log.Fatalf("Unable to initialize templates. Error: %s", err.Error())
+	}
+	config := emailConfig{
+		from:     os.Getenv("SMTP_FROM"),
+		host:     os.Getenv("SMTP_HOST"),
+		password: os.Getenv("SMTP_PASS"),
+		port:     os.Getenv("SMTP_PORT"),
+		user:     os.Getenv("SMTP_USER"),
+	}
 	client, err := cfclient.NewClient(&cfclient.Config{
 		ApiAddress:        os.Getenv("CF_API"),
 		ClientID:          os.Getenv("CLIENT_ID"),
@@ -27,8 +47,8 @@ func main() {
 	}
 	apps, buildpacks := getAppsAndBuildpacks(client)
 	outdatedApps := findOutdatedApps(apps, buildpacks)
-	_ = findOwnersOfApps(outdatedApps)
-
+	owners := findOwnersOfApps(outdatedApps)
+	sendNotifyEmailToUsers(owners, config, templates)
 }
 
 func listBuildpacks(c *cfclient.Client) ([]cfclient.BuildpackResource, error) {
@@ -164,4 +184,11 @@ func spaceUserHasRoles(user cfclient.SpaceRole, roles ...string) bool {
 		}
 	}
 	return false
+}
+
+func sendNotifyEmailToUsers(users map[string][]cfclient.App, config emailConfig, templates *Templates) {
+	for user, apps := range users {
+		body := new(bytes.Buffer)
+		templates.getNotifyEmail(body, notifyEmail{user, apps})
+	}
 }
