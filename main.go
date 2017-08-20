@@ -188,7 +188,12 @@ func spaceUserHasRoles(user cfclient.SpaceRole, roles ...string) bool {
 
 func sendNotifyEmailToUsers(users map[string][]cfclient.App, config emailConfig, templates *Templates) {
 	for user, apps := range users {
+		// Create buffer
 		body := new(bytes.Buffer)
+		// Fill buffer with completed e-mail
 		templates.getNotifyEmail(body, notifyEmail{user, apps})
+		// Send email
+		// Similar to https://github.com/18F/cg-dashboard/blob/master/mailer/mailer.go
+		// TODO: Send E-mail
 	}
 }
