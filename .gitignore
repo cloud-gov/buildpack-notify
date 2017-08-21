@@ -1,2 +1,3 @@
 cg-buildpack-notify
 vendor/
+*.html.returned
