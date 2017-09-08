@@ -1,3 +1,7 @@
 package: github.com/18F/cg-buildpack-notify
 import:
 - package: github.com/cloudfoundry-community/go-cfclient
+- package: github.com/jordan-wright/email
+- package: github.com/stretchr/testify
+  subpackages:
+  - mock

@@ -7,7 +7,9 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/18F/cg-buildpack-notify/mocks"
 	cfclient "github.com/cloudfoundry-community/go-cfclient"
+	"github.com/stretchr/testify/mock"
 )
 
 func TestSpaceUserHasRoles(t *testing.T) {
@@ -220,6 +222,165 @@ func TestFindOwnersOfApps(t *testing.T) {
 						t.Errorf("Test %s failed. Looked for app with guid %s, Could not find it", tc.name, actualOutdatedApp.Guid)
 					}
 				}
+			}
+		})
+	}
+}
+
+type testNotifyEmail struct {
+	notifyEmail
+	subject string
+}
+
+func TestSendNotifyEmailToUsers(t *testing.T) {
+	testCases := []struct {
+		name          string
+		usersAndApps  map[string][]cfclient.App
+		expectedCalls []testNotifyEmail
+	}{
+		{
+			"single user, single app",
+			map[string][]cfclient.App{
+				"james": []cfclient.App{
+					{Name: "testapp"},
+				},
+			},
+			[]testNotifyEmail{
+				{
+					notifyEmail{
+						"james",
+						[]cfclient.App{
+							{Name: "testapp"},
+						},
+					},
+					"Please restage your application",
+				},
+			},
+		},
+		{
+			"single user, multiple apps",
+			map[string][]cfclient.App{
+				"james": []cfclient.App{
+					{Name: "testapp1"},
+					{Name: "testapp2"},
+				},
+			},
+			[]testNotifyEmail{
+				{
+					notifyEmail{
+						"james",
+						[]cfclient.App{
+							{Name: "testapp1"},
+							{Name: "testapp2"},
+						},
+					},
+					"Please restage your applications",
+				},
+			},
+		},
+		{
+			"multiple users, each with a single app",
+			map[string][]cfclient.App{
+				"james": []cfclient.App{
+					{Name: "testapp1"},
+				},
+				"bob": []cfclient.App{
+					{Name: "testapp2"},
+				},
+			},
+			[]testNotifyEmail{
+				{
+					notifyEmail{
+						"james",
+						[]cfclient.App{
+							{Name: "testapp1"},
+						},
+					},
+					"Please restage your application",
+				},
+				{
+					notifyEmail{
+						"bob",
+						[]cfclient.App{
+							{Name: "testapp2"},
+						},
+					},
+					"Please restage your application",
+				},
+			},
+		},
+		{
+			"multiple users, each with multiple apps",
+			map[string][]cfclient.App{
+				"james": []cfclient.App{
+					{Name: "testapp1"},
+					{Name: "testapp2"},
+				},
+				"bob": []cfclient.App{
+					{Name: "testapp3"},
+					{Name: "testapp4"},
+				},
+			},
+			[]testNotifyEmail{
+				{
+					notifyEmail{
+						"james",
+						[]cfclient.App{
+							{Name: "testapp1"},
+							{Name: "testapp2"},
+						},
+					},
+					"Please restage your applications",
+				},
+				{
+					notifyEmail{
+						"bob",
+						[]cfclient.App{
+							{Name: "testapp3"},
+							{Name: "testapp4"},
+						},
+					},
+					"Please restage your applications",
+				},
+			},
+		},
+	}
+	for _, tc := range testCases {
+		templates, _ := initTemplates()
+		t.Run(tc.name, func(t *testing.T) {
+			mockMailer := new(mocks.Mailer)
+			mockMailer.On("SendEmail", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+			sendNotifyEmailToUsers(tc.usersAndApps, templates, mockMailer)
+			if !mockMailer.AssertNumberOfCalls(t, "SendEmail", len(tc.expectedCalls)) {
+				t.Errorf("Did not call send e-mail the number of expected times")
+				t.Log(len(mockMailer.Calls))
+			}
+			count := 0
+			for _, expectedCall := range tc.expectedCalls {
+				for _, call := range mockMailer.Calls {
+					if call.Method == "SendEmail" && call.Arguments.String(0) == expectedCall.Username {
+						if call.Arguments.String(1) != expectedCall.subject {
+							t.Errorf("Failed to match subject line. Found %s, Expected %s", call.Arguments.String(1), expectedCall.subject)
+							continue
+						}
+						raw := call.Arguments.Get(2).([]byte)
+						rawString := string(raw)
+						foundApps := true
+						for _, app := range expectedCall.Apps {
+							if !strings.Contains(rawString, app.Name) {
+								t.Errorf("Unable to find app name in e-mail %s", app.Name)
+								foundApps = false
+							}
+						}
+						if foundApps {
+							count++
+						}
+					}
+				}
+			}
+			// Sanity check.
+			if count != len(tc.expectedCalls) {
+				t.Error("Something unexpected happened which caused a mismatch number of calls")
 			}
 		})
 	}

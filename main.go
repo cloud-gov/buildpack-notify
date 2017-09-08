@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"io/ioutil"
 	"log"
 	"net/http"
@@ -45,10 +46,11 @@ func main() {
 	if err != nil {
 		log.Fatalf("Unable to create client. Error: %s", err.Error())
 	}
+	mailer := InitSMTPMailer(config)
 	apps, buildpacks := getAppsAndBuildpacks(client)
 	outdatedApps := findOutdatedApps(apps, buildpacks)
 	owners := findOwnersOfApps(outdatedApps)
-	sendNotifyEmailToUsers(owners, config, templates)
+	sendNotifyEmailToUsers(owners, templates, mailer)
 }
 
 func listBuildpacks(c *cfclient.Client) ([]cfclient.BuildpackResource, error) {
@@ -186,14 +188,20 @@ func spaceUserHasRoles(user cfclient.SpaceRole, roles ...string) bool {
 	return false
 }
 
-func sendNotifyEmailToUsers(users map[string][]cfclient.App, config emailConfig, templates *Templates) {
+func sendNotifyEmailToUsers(users map[string][]cfclient.App, templates *Templates, mailer Mailer) {
 	for user, apps := range users {
 		// Create buffer
 		body := new(bytes.Buffer)
 		// Fill buffer with completed e-mail
 		templates.getNotifyEmail(body, notifyEmail{user, apps})
 		// Send email
-		// Similar to https://github.com/18F/cg-dashboard/blob/master/mailer/mailer.go
-		// TODO: Send E-mail
+		appNoun := "application"
+		if len(apps) > 1 {
+			appNoun = "applications"
+		}
+		err := mailer.SendEmail(user, fmt.Sprintf("Please restage your %s", appNoun), body.Bytes())
+		if err != nil {
+			log.Printf("Unable to send e-mail to %s\n", user)
+		}
 	}
 }

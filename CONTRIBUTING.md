@@ -10,6 +10,14 @@ If you have any questions or want to read more, check out the [18F Open Source P
 
 ## Testing
 
+### Mocks
+
+We use mockery to generate mocks of our interfaces.
+
+```sh
+mockery -name=NameOfInterface
+```
+
 ### Template tests
 
 The template tests are useful to see what a completed template looks like. When developing, you
