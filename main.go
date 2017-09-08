@@ -139,20 +139,43 @@ func isAppUsingOutdatedBuildpack(app cfclient.App, buildpack *cfclient.Buildpack
 	return timeOfLastBuildpackUpdate.After(timeOfLastAppRestage)
 }
 
+type cfSpaceCache struct {
+	spaceRoles map[string][]cfclient.SpaceRole
+}
+
+func createCFSpaceCache() *cfSpaceCache {
+	return &cfSpaceCache{
+		spaceRoles: make(map[string][]cfclient.SpaceRole),
+	}
+}
+
+func (c *cfSpaceCache) getUsersInAppSpace(app cfclient.App) []cfclient.SpaceRole {
+	var ok bool
+	var usersWithSpaceRoles []cfclient.SpaceRole
+	if usersWithSpaceRoles, ok = c.spaceRoles[app.SpaceGuid]; ok {
+		return usersWithSpaceRoles
+	}
+	space, err := app.Space()
+	if err != nil {
+		log.Fatalf("Unable to get space of app %s. Error: %s", app.Name, err.Error())
+	}
+	usersWithSpaceRoles, err = space.Roles()
+	if err != nil {
+		log.Fatalf("Unable to get space roles of app %s. Error: %s", app.Name, err.Error())
+	}
+	c.spaceRoles[app.SpaceGuid] = usersWithSpaceRoles
+
+	return usersWithSpaceRoles
+}
+
 func findOwnersOfApps(apps []cfclient.App) map[string][]cfclient.App {
 	// Mapping of users to the apps.
 	owners := make(map[string][]cfclient.App)
+	spaceCache := createCFSpaceCache()
 	for _, app := range apps {
 		// Get the space
-		space, err := app.Space()
-		if err != nil {
-			log.Fatalf("Unable to get space of app %s. Error: %s", app.Name, err.Error())
-		}
+		usersWithSpaceRoles := spaceCache.getUsersInAppSpace(app)
 		// Get the list of space managers and space developers for the app.
-		usersWithSpaceRoles, err := space.Roles()
-		if err != nil {
-			log.Fatalf("Unable to get roles of space %s. Error: %s", space.Name, err.Error())
-		}
 		for _, userWithSpaceRoles := range usersWithSpaceRoles {
 			if spaceUserHasRoles(userWithSpaceRoles, "space_developer", "space_manager") {
 				owners[userWithSpaceRoles.Username] = append(owners[userWithSpaceRoles.Username], app)
