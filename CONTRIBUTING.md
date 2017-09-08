@@ -22,7 +22,11 @@ mockery -name=NameOfInterface
 
 The template tests are useful to see what a completed template looks like. When developing, you
 should add your expected result file in the `testdata` folder. The file should be a `.html` file
-so that when a user opens it, it will open in their browser.
+so that when a user opens it, it will open in their web browser. It should follow the format:
+
+```
+testdata/{medium}/{feature}/{test_name}.html
+```
 
 In the case, there's a failed template test, the failed rendered result will be in the same folder
 as the expected result but with a `.html.returned` file name.
