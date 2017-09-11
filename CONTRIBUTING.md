@@ -8,6 +8,33 @@ We encourage you to read this project's CONTRIBUTING policy (you are here), its 
 
 If you have any questions or want to read more, check out the [18F Open Source Policy GitHub repository](https://github.com/18f/open-source-policy), or just [shoot us an email](mailto:18f@gsa.gov).
 
+## Testing
+
+### Mocks
+
+We use mockery to generate mocks of our interfaces.
+
+```sh
+mockery -name=NameOfInterface
+```
+
+### Template tests
+
+The template tests are useful to see what a completed template looks like. When developing, you
+should add your expected result file in the `testdata` folder. The file should be a `.html` file
+so that when a user opens it, it will open in their web browser. It should follow the format:
+
+```
+testdata/{medium}/{feature}/{test_name}.html
+```
+
+In the case, there's a failed template test, the failed rendered result will be in the same folder
+as the expected result but with a `.html.returned` file name.
+
+- A test data development common pattern is to create an empty expected `.html`. Upon running the
+test, it will render the result with a `.html.returned` file name. You can `mv` the file to the
+expected `.html` file to overwrite the existing empty one.
+
 ## Public domain
 
 This project is in the public domain within the United States, and

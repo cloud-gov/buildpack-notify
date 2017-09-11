@@ -1,58 +1,48 @@
-hash: 167c7f552ad0e37a76a88025c03acafaee9a9d37d3ac42be6164f9464b9cd3d8
-updated: 2017-08-16T13:46:46.915479538-04:00
+hash: c3c3b622be346385db69670b3c202ae8f1d927fc1399fea10a4907b70c0d024c
+updated: 2017-09-08T16:23:28.992374726-04:00
 imports:
 - name: github.com/cloudfoundry-community/go-cfclient
-  version: dbe382d68b57a2345f60b71935eb6e8cfa7e5895
+  version: 983f0bf32d53fef86f65c095ecb693acf8a8d95e
+- name: github.com/davecgh/go-spew
+  version: 6d212800a42e8ab5c146b8ace3490ee17e5225f9
+  subpackages:
+  - spew
 - name: github.com/golang/protobuf
   version: 874264fbbb43f4d91e999fecb4b40143ed611400
   subpackages:
   - proto
-  - proto/testdata
-  - ptypes/any
+- name: github.com/jordan-wright/email
+  version: 09f803b133a9229292871a003eb1a5b077fb32b2
 - name: github.com/pkg/errors
   version: c605e284fe17294bda444b34710735b29d1a9d90
+- name: github.com/pmezard/go-difflib
+  version: d8ed2627bdf02c080bf22230dbb337003b7aba2d
+  subpackages:
+  - difflib
+- name: github.com/stretchr/objx
+  version: cbeaeb16a013161a98496fad62933b1d21786672
+- name: github.com/stretchr/testify
+  version: 69483b4bd14f5845b5a1e55bca19e954e827f1d0
+  subpackages:
+  - assert
+  - mock
 - name: golang.org/x/net
   version: db8e4de5b2d6653f66aea53094624468caad15d2
   subpackages:
   - context
-  - context/ctxhttp
 - name: golang.org/x/oauth2
   version: b5adcc2dcdf009d0391547edc6ecbaff889f5bb9
   subpackages:
   - clientcredentials
   - internal
-  - jws
-  - jwt
 - name: google.golang.org/appengine
   version: e234e71924d4aa52444bc76f2f831f13fa1eca60
   subpackages:
-  - datastore
   - internal
-  - internal/app_identity
   - internal/base
-  - internal/blobstore
-  - internal/capability
-  - internal/channel
   - internal/datastore
-  - internal/image
   - internal/log
-  - internal/mail
-  - internal/memcache
-  - internal/modules
   - internal/remote_api
-  - internal/search
-  - internal/socket
-  - internal/system
-  - internal/taskqueue
   - internal/urlfetch
-  - internal/user
-  - internal/xmpp
-  - log
-  - taskqueue
   - urlfetch
-  - user
-- name: google.golang.org/cloud
-  version: 06f11fffc537c4aef126d9fd3a92e2d7968f118f
-  subpackages:
-  - compute/metadata
 testImports: []

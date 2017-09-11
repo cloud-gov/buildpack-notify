@@ -1,0 +1,8 @@
+---
+applications:
+- name: dummy-app
+  memory: 16M
+  instances: 1
+  buildpack: notify-test-buildpack
+  no-route: true
+  disk_quota: 64M

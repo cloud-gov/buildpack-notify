@@ -1,0 +1,7 @@
+version: '2.1'
+services:
+  mail:
+    image: tophfr/mailcatcher
+    ports:
+      - "8025:80" # for the web UI
+      - "2525:25"

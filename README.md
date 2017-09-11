@@ -2,6 +2,10 @@
 
 Toward proactively encouraging cloud.gov customers to restage their apps so they can benefit from buildpack updates.
 
+## Requirements
+
+Go v1.8+
+
 ## Local setup using PCFDev
 ```sh
 docker run governmentpaas/cf-uaac \
@@ -18,6 +22,17 @@ docker run governmentpaas/cf-uaac \
 go build
 CF_API="https://api.local.pcfdev.io" CLIENT_ID="buildpack-notify" CLIENT_SECRET="notarealsecret" INSECURE="1" ./cg-buildpack-notify
 ```
+
+## Tests
+
+You can run tests with: `go test`
+
+### Integration Tests
+
+Integration Tests can be found in the `integration` folder
+
+If you want to run it locally with `pcfdev` and `docker`:
+`docker-compose up -d && TEST_PASS="notarealpass" SMTP_FROM="no-reply@cloud.gov" SMTP_PASS="" SMTP_PORT="2525" SMTP_USER="" SMTP_HOST="localhost" CF_API="https://api.local.pcfdev.io" CLIENT_ID="buildpack-notify" CLIENT_SECRET="notarealsecret" INSECURE="1" ./integration/test.sh`
 
 ## Contributing
 
