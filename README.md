@@ -27,6 +27,13 @@ CF_API="https://api.local.pcfdev.io" CLIENT_ID="buildpack-notify" CLIENT_SECRET=
 
 You can run tests with: `go test`
 
+### Integration Tests
+
+Integration Tests can be found in the `integration` folder
+
+If you want to run it locally with `pcfdev` and `docker`:
+`CF_API="https://api.local.pcfdev.io" CLIENT_ID="buildpack-notify" CLIENT_SECRET="notarealsecret" INSECURE="1" ./integration/test.sh`
+
 ## Contributing
 
 See [CONTRIBUTING](CONTRIBUTING.md) for additional information.
