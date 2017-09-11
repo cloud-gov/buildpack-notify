@@ -196,7 +196,7 @@ func TestFindOwnersOfApps(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			actual := findOwnersOfApps(apps)
+			actual := findOwnersOfApps(apps, &c)
 			if len(actual) != len(tc.expected) {
 				t.Errorf("Test %s failed. Expected %d user entries, only found %d\n", tc.name, len(tc.expected), len(actual))
 			}

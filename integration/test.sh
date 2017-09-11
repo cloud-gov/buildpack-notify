@@ -47,8 +47,10 @@ make deploy
 pushd ../../
 go build && ./cg-buildpack-notify > log.txt
 ## show the log.
+echo "Showing run log.."
 cat log.txt
 ## check log
+echo "Searching for text.."
 grep "Sent e-mail to" log.txt
 RESULT=$?
 if [ $RESULT -eq 0 ]; then
@@ -66,8 +68,10 @@ cf update-buildpack $BUILDPACK_NAME -p $BUILDPACK_VERSION_2_ZIP -i 100 --enable
 pushd ../../
 go build && ./cg-buildpack-notify > log.txt
 ## show the log.
+echo "Showing run log.."
 cat log.txt
 ## check log
+echo "Searching for text.."
 grep "Sent e-mail to $TEST_USER" log.txt
 RESULT=$?
 if [ $RESULT -eq 0 ]; then
@@ -85,8 +89,10 @@ make deploy
 pushd ../../
 go build && ./cg-buildpack-notify > log.txt
 ## show the log.
+echo "Showing run log.."
 cat log.txt
 ## check log
+echo "Searching for text.."
 grep "Sent e-mail to" log.txt
 RESULT=$?
 if [ $RESULT -eq 0 ]; then

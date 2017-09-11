@@ -97,12 +97,12 @@ func isAppUsingOutdatedBuildpack(app cfclient.App, buildpack *cfclient.Buildpack
 }
 
 type cfSpaceCache struct {
-	spaceUsers map[string][]cfclient.User
+	spaceUsers map[string]map[string]cfclient.User
 }
 
 func createCFSpaceCache() *cfSpaceCache {
 	return &cfSpaceCache{
-		spaceUsers: make(map[string][]cfclient.User),
+		spaceUsers: make(map[string]map[string]cfclient.User),
 	}
 }
 
@@ -119,12 +119,13 @@ func filterForValidEmailUsernames(users []cfclient.User, app cfclient.App) []cfc
 	return filteredUsers
 }
 
-func (c *cfSpaceCache) getOwnersInAppSpace(app cfclient.App, client *cfclient.Client) []cfclient.User {
+func (c *cfSpaceCache) getOwnersInAppSpace(app cfclient.App, client *cfclient.Client) map[string]cfclient.User {
 	var ok bool
-	var usersWithSpaceRoles []cfclient.User
+	var usersWithSpaceRoles map[string]cfclient.User
 	if usersWithSpaceRoles, ok = c.spaceUsers[app.SpaceGuid]; ok {
 		return usersWithSpaceRoles
 	}
+	usersWithSpaceRoles = make(map[string]cfclient.User)
 	space, err := app.Space()
 	if err != nil {
 		log.Fatalf("Unable to get space of app %s. Error: %s", app.Name, err.Error())
@@ -140,8 +141,18 @@ func (c *cfSpaceCache) getOwnersInAppSpace(app cfclient.App, client *cfclient.Cl
 	}
 	filteredSpaceManagers := filterForValidEmailUsernames(spaceManagers, app)
 
-	usersWithSpaceRoles = append(usersWithSpaceRoles, filteredSpaceDevelopers...)
-	usersWithSpaceRoles = append(usersWithSpaceRoles, filteredSpaceManagers...)
+	for _, filteredUser := range filteredSpaceDevelopers {
+		if _, found := usersWithSpaceRoles[filteredUser.Guid]; !found {
+			usersWithSpaceRoles[filteredUser.Guid] = filteredUser
+		}
+	}
+
+	for _, filteredUser := range filteredSpaceManagers {
+		if _, found := usersWithSpaceRoles[filteredUser.Guid]; !found {
+			usersWithSpaceRoles[filteredUser.Guid] = filteredUser
+		}
+	}
+	c.spaceUsers[app.SpaceGuid] = usersWithSpaceRoles
 
 	return usersWithSpaceRoles
 }
