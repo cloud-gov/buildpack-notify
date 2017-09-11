@@ -2,16 +2,14 @@ package main
 
 import (
 	"bytes"
-	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"log"
 	"net/http"
+	"net/mail"
 	"os"
 	"time"
 
 	cfclient "github.com/cloudfoundry-community/go-cfclient"
-	"github.com/pkg/errors"
 )
 
 // TODO: handle errors centrally.
@@ -49,50 +47,9 @@ func main() {
 	mailer := InitSMTPMailer(config)
 	apps, buildpacks := getAppsAndBuildpacks(client)
 	outdatedApps := findOutdatedApps(apps, buildpacks)
-	owners := findOwnersOfApps(outdatedApps)
+	owners := findOwnersOfApps(outdatedApps, client)
+	log.Printf("Will notify %d owners of outdated apps.\n", len(owners))
 	sendNotifyEmailToUsers(owners, templates, mailer)
-}
-
-func listBuildpacks(c *cfclient.Client) ([]cfclient.BuildpackResource, error) {
-	var buildpacks []cfclient.BuildpackResource
-	requestURL := "/v2/buildpacks"
-	for {
-		buildpackResp, err := getBuildpackResponse(requestURL, c)
-		if err != nil {
-			return []cfclient.BuildpackResource{}, err
-		}
-		for _, buildpack := range buildpackResp.Resources {
-			buildpack.Entity.Guid = buildpack.Meta.Guid
-			buildpacks = append(buildpacks, buildpack)
-		}
-
-		requestURL = buildpackResp.NextUrl
-		if requestURL == "" {
-			break
-		}
-	}
-	return buildpacks, nil
-}
-
-// Copied from github.com/cloudfoundry-community/go-cfclient/buildpacks.go for use in listBuildpacks.
-// Without this, we wouldn't have access to the necessary metadata (buildpack.Meta).
-func getBuildpackResponse(requestURL string, c *cfclient.Client) (cfclient.BuildpackResponse, error) {
-	var buildpackResp cfclient.BuildpackResponse
-	r := c.NewRequest("GET", requestURL)
-	resp, err := c.DoRequest(r)
-	if err != nil {
-		return cfclient.BuildpackResponse{}, errors.Wrap(err, "Error requesting buildpacks")
-	}
-	resBody, err := ioutil.ReadAll(resp.Body)
-	defer resp.Body.Close()
-	if err != nil {
-		return cfclient.BuildpackResponse{}, errors.Wrap(err, "Error reading buildpack request")
-	}
-	err = json.Unmarshal(resBody, &buildpackResp)
-	if err != nil {
-		return cfclient.BuildpackResponse{}, errors.Wrap(err, "Error unmarshalling buildpack")
-	}
-	return buildpackResp, nil
 }
 
 func getAppsAndBuildpacks(client *cfclient.Client) ([]cfclient.App, map[string]cfclient.BuildpackResource) {
@@ -140,46 +97,64 @@ func isAppUsingOutdatedBuildpack(app cfclient.App, buildpack *cfclient.Buildpack
 }
 
 type cfSpaceCache struct {
-	spaceRoles map[string][]cfclient.SpaceRole
+	spaceUsers map[string][]cfclient.User
 }
 
 func createCFSpaceCache() *cfSpaceCache {
 	return &cfSpaceCache{
-		spaceRoles: make(map[string][]cfclient.SpaceRole),
+		spaceUsers: make(map[string][]cfclient.User),
 	}
 }
 
-func (c *cfSpaceCache) getUsersInAppSpace(app cfclient.App) []cfclient.SpaceRole {
+func filterForValidEmailUsernames(users []cfclient.User, app cfclient.App) []cfclient.User {
+	var filteredUsers []cfclient.User
+	for _, user := range users {
+		if _, err := mail.ParseAddress(user.Username); err == nil {
+			filteredUsers = append(filteredUsers, user)
+		} else {
+			log.Printf("Dropping notification to user %s about app %s in space %s because "+
+				"invalid e-mail address\n", user.Username, app.Name, app.SpaceGuid)
+		}
+	}
+	return filteredUsers
+}
+
+func (c *cfSpaceCache) getOwnersInAppSpace(app cfclient.App, client *cfclient.Client) []cfclient.User {
 	var ok bool
-	var usersWithSpaceRoles []cfclient.SpaceRole
-	if usersWithSpaceRoles, ok = c.spaceRoles[app.SpaceGuid]; ok {
+	var usersWithSpaceRoles []cfclient.User
+	if usersWithSpaceRoles, ok = c.spaceUsers[app.SpaceGuid]; ok {
 		return usersWithSpaceRoles
 	}
 	space, err := app.Space()
 	if err != nil {
 		log.Fatalf("Unable to get space of app %s. Error: %s", app.Name, err.Error())
 	}
-	usersWithSpaceRoles, err = space.Roles()
+	spaceDevelopers, err := listUsersWithSpaceRole(client, space.Guid, SpaceDevelopers)
 	if err != nil {
-		log.Fatalf("Unable to get space roles of app %s. Error: %s", app.Name, err.Error())
+		log.Fatalf("Unable to get space developers of app %s. Error: %s", app.Name, err.Error())
 	}
-	c.spaceRoles[app.SpaceGuid] = usersWithSpaceRoles
+	filteredSpaceDevelopers := filterForValidEmailUsernames(spaceDevelopers, app)
+	spaceManagers, err := listUsersWithSpaceRole(client, space.Guid, SpaceManagers)
+	if err != nil {
+		log.Fatalf("Unable to get space manager of app %s. Error: %s", app.Name, err.Error())
+	}
+	filteredSpaceManagers := filterForValidEmailUsernames(spaceManagers, app)
+
+	usersWithSpaceRoles = append(usersWithSpaceRoles, filteredSpaceDevelopers...)
+	usersWithSpaceRoles = append(usersWithSpaceRoles, filteredSpaceManagers...)
 
 	return usersWithSpaceRoles
 }
 
-func findOwnersOfApps(apps []cfclient.App) map[string][]cfclient.App {
+func findOwnersOfApps(apps []cfclient.App, client *cfclient.Client) map[string][]cfclient.App {
 	// Mapping of users to the apps.
 	owners := make(map[string][]cfclient.App)
 	spaceCache := createCFSpaceCache()
 	for _, app := range apps {
 		// Get the space
-		usersWithSpaceRoles := spaceCache.getUsersInAppSpace(app)
-		// Get the list of space managers and space developers for the app.
-		for _, userWithSpaceRoles := range usersWithSpaceRoles {
-			if spaceUserHasRoles(userWithSpaceRoles, "space_developer", "space_manager") {
-				owners[userWithSpaceRoles.Username] = append(owners[userWithSpaceRoles.Username], app)
-			}
+		ownersWithSpaceRoles := spaceCache.getOwnersInAppSpace(app, client)
+		for _, ownerWithSpaceRoles := range ownersWithSpaceRoles {
+			owners[ownerWithSpaceRoles.Username] = append(owners[ownerWithSpaceRoles.Username], app)
 		}
 	}
 	return owners

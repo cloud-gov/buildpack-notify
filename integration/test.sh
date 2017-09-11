@@ -7,6 +7,7 @@ cd "$(dirname "$0")"
 # CF_API_SSL_FLAG (optional)
 # CF_USER
 # CF_PASS
+# TEST_PASS
 
 BUILDPACK_NAME="notify-test-buildpack"
 BUILDPACK_VERSION_1_ZIP="https://github.com/cloudfoundry/binary-buildpack/releases/download/v1.0.13/binary-buildpack-v1.0.13.zip"
@@ -15,6 +16,7 @@ BUILDPACK_VERSION_2_ZIP="https://github.com/cloudfoundry/binary-buildpack/releas
 
 ORG="test-notify-org"
 SPACE="test-notify-space"
+TEST_USER="notify-test-user@example.com"
 
 RET=0
 
@@ -27,7 +29,9 @@ cf create-org "$ORG"
 cf create-space "$SPACE" -o "$ORG"
 cf target -o "$ORG" -s "$SPACE"
 
-cf set-space-role $CF_USER "$ORG" "$SPACE" SpaceDeveloper
+cf create-user $TEST_USER "$TEST_PASS"
+cf set-space-role $TEST_USER "$ORG" "$SPACE" SpaceManager
+cf set-space-role $TEST_USER "$ORG" "$SPACE" SpaceDeveloper
 
 # Delete any buildpacks beforehand
 cf delete-buildpack $BUILDPACK_NAME -f
@@ -64,12 +68,12 @@ go build && ./cg-buildpack-notify > log.txt
 ## show the log.
 cat log.txt
 ## check log
-grep "Sent e-mail to $CF_USER" log.txt
+grep "Sent e-mail to $TEST_USER" log.txt
 RESULT=$?
 if [ $RESULT -eq 0 ]; then
   echo "success"
 else
-  echo "didn't send e-mail to user $CF_USER"
+  echo "didn't send e-mail to user $TEST_USER"
   RET=1
 fi
 popd

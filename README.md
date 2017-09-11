@@ -32,7 +32,7 @@ You can run tests with: `go test`
 Integration Tests can be found in the `integration` folder
 
 If you want to run it locally with `pcfdev` and `docker`:
-`CF_API="https://api.local.pcfdev.io" CLIENT_ID="buildpack-notify" CLIENT_SECRET="notarealsecret" INSECURE="1" ./integration/test.sh`
+`docker-compose up -d && TEST_PASS="notarealpass" "SMTP_FROM="no-reply@cloud.gov" SMTP_PASS="" SMTP_PORT="2525" SMTP_USER="" SMTP_HOST="localhost" CF_API="https://api.local.pcfdev.io" CLIENT_ID="buildpack-notify" CLIENT_SECRET="notarealsecret" INSECURE="1" ./integration/test.sh`
 
 ## Contributing
 

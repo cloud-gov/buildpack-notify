@@ -1,3 +1,4 @@
 cg-buildpack-notify
 vendor/
 *.html.returned
+log.txt
