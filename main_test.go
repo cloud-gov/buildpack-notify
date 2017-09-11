@@ -35,8 +35,17 @@ func TestSpaceUserHasRoles(t *testing.T) {
 
 type spaceSpec struct {
 	space      cfclient.SpaceResource
+	developers cfclient.UserResponse
+	managers   cfclient.UserResponse
 	spaceRoles cfclient.SpaceRoleResponse
 }
+
+const (
+	user1     = "user1@example.com"
+	user1GUID = "user1-guid"
+	user2     = "user2@example.com"
+	user2GUID = "user2-guid"
+)
 
 func TestFindOwnersOfApps(t *testing.T) {
 	testCases := []struct {
@@ -51,10 +60,12 @@ func TestFindOwnersOfApps(t *testing.T) {
 			map[string]spaceSpec{
 				"space1": {
 					cfclient.SpaceResource{Meta: cfclient.Meta{Guid: "space1"}, Entity: cfclient.Space{}},
-					cfclient.SpaceRoleResponse{Resources: []cfclient.SpaceRoleResource{{Entity: cfclient.SpaceRole{Username: "user1", SpaceRoles: []string{"space_manager"}}}}},
+					cfclient.UserResponse{Resources: []cfclient.UserResource{}},
+					cfclient.UserResponse{Resources: []cfclient.UserResource{{Meta: cfclient.Meta{Guid: user1GUID}, Entity: cfclient.User{Username: user1}}}},
+					cfclient.SpaceRoleResponse{Resources: []cfclient.SpaceRoleResource{{Entity: cfclient.SpaceRole{Username: user1, SpaceRoles: []string{"space_manager"}}}}},
 				},
 			},
-			map[string][]cfclient.App{"user1": []cfclient.App{cfclient.App{Guid: "app1", SpaceURL: "/v2/spaces/space1", SpaceGuid: "space1"}}},
+			map[string][]cfclient.App{user1: []cfclient.App{cfclient.App{Guid: "app1", SpaceURL: "/v2/spaces/space1", SpaceGuid: "space1"}}},
 		},
 		{
 			"single app, single user multiple valid roles",
@@ -62,10 +73,12 @@ func TestFindOwnersOfApps(t *testing.T) {
 			map[string]spaceSpec{
 				"space1": {
 					cfclient.SpaceResource{Meta: cfclient.Meta{Guid: "space1"}, Entity: cfclient.Space{}},
-					cfclient.SpaceRoleResponse{Resources: []cfclient.SpaceRoleResource{{Entity: cfclient.SpaceRole{Username: "user1", SpaceRoles: []string{"space_manager", "space_developer"}}}}},
+					cfclient.UserResponse{Resources: []cfclient.UserResource{{Meta: cfclient.Meta{Guid: user1GUID}, Entity: cfclient.User{Username: user1}}}},
+					cfclient.UserResponse{Resources: []cfclient.UserResource{{Meta: cfclient.Meta{Guid: user1GUID}, Entity: cfclient.User{Username: user1}}}},
+					cfclient.SpaceRoleResponse{Resources: []cfclient.SpaceRoleResource{{Entity: cfclient.SpaceRole{Username: user1, SpaceRoles: []string{"space_manager", "space_developer"}}}}},
 				},
 			},
-			map[string][]cfclient.App{"user1": []cfclient.App{cfclient.App{Guid: "app1", SpaceURL: "/v2/spaces/space1", SpaceGuid: "space1"}}},
+			map[string][]cfclient.App{user1: []cfclient.App{cfclient.App{Guid: "app1", SpaceURL: "/v2/spaces/space1", SpaceGuid: "space1"}}},
 		},
 		{
 			"single app, single user one valid role, one invalid role",
@@ -73,10 +86,12 @@ func TestFindOwnersOfApps(t *testing.T) {
 			map[string]spaceSpec{
 				"space1": {
 					cfclient.SpaceResource{Meta: cfclient.Meta{Guid: "space1"}, Entity: cfclient.Space{}},
-					cfclient.SpaceRoleResponse{Resources: []cfclient.SpaceRoleResource{{Entity: cfclient.SpaceRole{Username: "user1", SpaceRoles: []string{"space_manager", "space_auditor"}}}}},
+					cfclient.UserResponse{Resources: []cfclient.UserResource{}},
+					cfclient.UserResponse{Resources: []cfclient.UserResource{{Meta: cfclient.Meta{Guid: user1GUID}, Entity: cfclient.User{Username: user1}}}},
+					cfclient.SpaceRoleResponse{Resources: []cfclient.SpaceRoleResource{{Entity: cfclient.SpaceRole{Username: user1, SpaceRoles: []string{"space_manager", "space_auditor"}}}}},
 				},
 			},
-			map[string][]cfclient.App{"user1": []cfclient.App{cfclient.App{Guid: "app1", SpaceURL: "/v2/spaces/space1", SpaceGuid: "space1"}}},
+			map[string][]cfclient.App{user1: []cfclient.App{cfclient.App{Guid: "app1", SpaceURL: "/v2/spaces/space1", SpaceGuid: "space1"}}},
 		},
 		{
 			"single app, single user no valid role",
@@ -84,7 +99,9 @@ func TestFindOwnersOfApps(t *testing.T) {
 			map[string]spaceSpec{
 				"space1": {
 					cfclient.SpaceResource{Meta: cfclient.Meta{Guid: "space1"}, Entity: cfclient.Space{}},
-					cfclient.SpaceRoleResponse{Resources: []cfclient.SpaceRoleResource{{Entity: cfclient.SpaceRole{Username: "user1", SpaceRoles: []string{"space_auditor"}}}}},
+					cfclient.UserResponse{Resources: []cfclient.UserResource{}},
+					cfclient.UserResponse{Resources: []cfclient.UserResource{}},
+					cfclient.SpaceRoleResponse{Resources: []cfclient.SpaceRoleResource{{Entity: cfclient.SpaceRole{Username: user1, SpaceRoles: []string{"space_auditor"}}}}},
 				},
 			},
 			map[string][]cfclient.App{},
@@ -95,15 +112,17 @@ func TestFindOwnersOfApps(t *testing.T) {
 			map[string]spaceSpec{
 				"space1": {
 					cfclient.SpaceResource{Meta: cfclient.Meta{Guid: "space1"}, Entity: cfclient.Space{}},
+					cfclient.UserResponse{Resources: []cfclient.UserResource{}},
+					cfclient.UserResponse{Resources: []cfclient.UserResource{{Meta: cfclient.Meta{Guid: user1GUID}, Entity: cfclient.User{Username: user1}}, {Meta: cfclient.Meta{Guid: user2GUID}, Entity: cfclient.User{Username: user2}}}},
 					cfclient.SpaceRoleResponse{Resources: []cfclient.SpaceRoleResource{
-						{Entity: cfclient.SpaceRole{Username: "user1", SpaceRoles: []string{"space_manager"}}},
-						{Entity: cfclient.SpaceRole{Username: "user2", SpaceRoles: []string{"space_manager"}}},
+						{Entity: cfclient.SpaceRole{Username: user1, SpaceRoles: []string{"space_manager"}}},
+						{Entity: cfclient.SpaceRole{Username: user2, SpaceRoles: []string{"space_manager"}}},
 					}},
 				},
 			},
 			map[string][]cfclient.App{
-				"user1": []cfclient.App{cfclient.App{Guid: "app1", SpaceURL: "/v2/spaces/space1", SpaceGuid: "space1"}},
-				"user2": []cfclient.App{cfclient.App{Guid: "app1", SpaceURL: "/v2/spaces/space1", SpaceGuid: "space1"}},
+				user1: []cfclient.App{cfclient.App{Guid: "app1", SpaceURL: "/v2/spaces/space1", SpaceGuid: "space1"}},
+				user2: []cfclient.App{cfclient.App{Guid: "app1", SpaceURL: "/v2/spaces/space1", SpaceGuid: "space1"}},
 			},
 		},
 		{
@@ -112,14 +131,16 @@ func TestFindOwnersOfApps(t *testing.T) {
 			map[string]spaceSpec{
 				"space1": {
 					cfclient.SpaceResource{Meta: cfclient.Meta{Guid: "space1"}, Entity: cfclient.Space{}},
+					cfclient.UserResponse{Resources: []cfclient.UserResource{}},
+					cfclient.UserResponse{Resources: []cfclient.UserResource{{Meta: cfclient.Meta{Guid: user2GUID}, Entity: cfclient.User{Username: user2}}}},
 					cfclient.SpaceRoleResponse{Resources: []cfclient.SpaceRoleResource{
-						{Entity: cfclient.SpaceRole{Username: "user1", SpaceRoles: []string{"space_auditor"}}},
-						{Entity: cfclient.SpaceRole{Username: "user2", SpaceRoles: []string{"space_manager"}}},
+						{Entity: cfclient.SpaceRole{Username: user1, SpaceRoles: []string{"space_auditor"}}},
+						{Entity: cfclient.SpaceRole{Username: user2, SpaceRoles: []string{"space_manager"}}},
 					}},
 				},
 			},
 			map[string][]cfclient.App{
-				"user2": []cfclient.App{cfclient.App{Guid: "app1", SpaceURL: "/v2/spaces/space1", SpaceGuid: "space1"}},
+				user2: []cfclient.App{cfclient.App{Guid: "app1", SpaceURL: "/v2/spaces/space1", SpaceGuid: "space1"}},
 			},
 		},
 		{
@@ -131,20 +152,24 @@ func TestFindOwnersOfApps(t *testing.T) {
 			map[string]spaceSpec{
 				"space1": {
 					cfclient.SpaceResource{Meta: cfclient.Meta{Guid: "space1"}, Entity: cfclient.Space{}},
+					cfclient.UserResponse{Resources: []cfclient.UserResource{}},
+					cfclient.UserResponse{Resources: []cfclient.UserResource{{Meta: cfclient.Meta{Guid: user1GUID}, Entity: cfclient.User{Username: user1}}}},
 					cfclient.SpaceRoleResponse{Resources: []cfclient.SpaceRoleResource{
-						{Entity: cfclient.SpaceRole{Username: "user1", SpaceRoles: []string{"space_manager"}}},
+						{Entity: cfclient.SpaceRole{Username: user1, SpaceRoles: []string{"space_manager"}}},
 					}},
 				},
 				"space2": {
 					cfclient.SpaceResource{Meta: cfclient.Meta{Guid: "space2"}, Entity: cfclient.Space{}},
+					cfclient.UserResponse{Resources: []cfclient.UserResource{}},
+					cfclient.UserResponse{Resources: []cfclient.UserResource{{Meta: cfclient.Meta{Guid: user2GUID}, Entity: cfclient.User{Username: user2}}}},
 					cfclient.SpaceRoleResponse{Resources: []cfclient.SpaceRoleResource{
-						{Entity: cfclient.SpaceRole{Username: "user2", SpaceRoles: []string{"space_manager"}}},
+						{Entity: cfclient.SpaceRole{Username: user2, SpaceRoles: []string{"space_manager"}}},
 					}},
 				},
 			},
 			map[string][]cfclient.App{
-				"user1": []cfclient.App{cfclient.App{Guid: "app1", SpaceURL: "/v2/spaces/space1", SpaceGuid: "space1"}},
-				"user2": []cfclient.App{cfclient.App{Guid: "app2", SpaceURL: "/v2/spaces/space2", SpaceGuid: "space2"}},
+				user1: []cfclient.App{cfclient.App{Guid: "app1", SpaceURL: "/v2/spaces/space1", SpaceGuid: "space1"}},
+				user2: []cfclient.App{cfclient.App{Guid: "app2", SpaceURL: "/v2/spaces/space2", SpaceGuid: "space2"}},
 			},
 		},
 		{
@@ -156,22 +181,26 @@ func TestFindOwnersOfApps(t *testing.T) {
 			map[string]spaceSpec{
 				"space1": {
 					cfclient.SpaceResource{Meta: cfclient.Meta{Guid: "space1"}, Entity: cfclient.Space{}},
+					cfclient.UserResponse{Resources: []cfclient.UserResource{}},
+					cfclient.UserResponse{Resources: []cfclient.UserResource{{Meta: cfclient.Meta{Guid: user1GUID}, Entity: cfclient.User{Username: user1}}, {Meta: cfclient.Meta{Guid: user2GUID}, Entity: cfclient.User{Username: user2}}}},
 					cfclient.SpaceRoleResponse{Resources: []cfclient.SpaceRoleResource{
-						{Entity: cfclient.SpaceRole{Username: "user1", SpaceRoles: []string{"space_manager"}}},
-						{Entity: cfclient.SpaceRole{Username: "user2", SpaceRoles: []string{"space_manager"}}},
+						{Entity: cfclient.SpaceRole{Username: user1, SpaceRoles: []string{"space_manager"}}},
+						{Entity: cfclient.SpaceRole{Username: user2, SpaceRoles: []string{"space_manager"}}},
 					}},
 				},
 				"space2": {
 					cfclient.SpaceResource{Meta: cfclient.Meta{Guid: "space2"}, Entity: cfclient.Space{}},
+					cfclient.UserResponse{Resources: []cfclient.UserResource{}},
+					cfclient.UserResponse{Resources: []cfclient.UserResource{{Meta: cfclient.Meta{Guid: user1GUID}, Entity: cfclient.User{Username: user1}}, {Meta: cfclient.Meta{Guid: user2GUID}, Entity: cfclient.User{Username: user2}}}},
 					cfclient.SpaceRoleResponse{Resources: []cfclient.SpaceRoleResource{
-						{Entity: cfclient.SpaceRole{Username: "user1", SpaceRoles: []string{"space_manager"}}},
-						{Entity: cfclient.SpaceRole{Username: "user2", SpaceRoles: []string{"space_manager"}}},
+						{Entity: cfclient.SpaceRole{Username: user1, SpaceRoles: []string{"space_manager"}}},
+						{Entity: cfclient.SpaceRole{Username: user2, SpaceRoles: []string{"space_manager"}}},
 					}},
 				},
 			},
 			map[string][]cfclient.App{
-				"user1": []cfclient.App{cfclient.App{Guid: "app1", SpaceURL: "/v2/spaces/space1", SpaceGuid: "space1"}, cfclient.App{Guid: "app2", SpaceURL: "/v2/spaces/space2", SpaceGuid: "space2"}},
-				"user2": []cfclient.App{cfclient.App{Guid: "app1", SpaceURL: "/v2/spaces/space1", SpaceGuid: "space1"}, cfclient.App{Guid: "app2", SpaceURL: "/v2/spaces/space2", SpaceGuid: "space2"}},
+				user1: []cfclient.App{cfclient.App{Guid: "app1", SpaceURL: "/v2/spaces/space1", SpaceGuid: "space1"}, cfclient.App{Guid: "app2", SpaceURL: "/v2/spaces/space2", SpaceGuid: "space2"}},
+				user2: []cfclient.App{cfclient.App{Guid: "app1", SpaceURL: "/v2/spaces/space1", SpaceGuid: "space1"}, cfclient.App{Guid: "app2", SpaceURL: "/v2/spaces/space2", SpaceGuid: "space2"}},
 			},
 		},
 	}
@@ -184,6 +213,10 @@ func TestFindOwnersOfApps(t *testing.T) {
 					encoder.Encode(tc.apps)
 				} else if strings.HasSuffix(r.URL.Path, "user_roles") {
 					encoder.Encode(tc.spaces[parts[len(parts)-2]].spaceRoles)
+				} else if strings.HasSuffix(r.URL.Path, "developers") {
+					encoder.Encode(tc.spaces[parts[len(parts)-2]].developers)
+				} else if strings.HasSuffix(r.URL.Path, "managers") {
+					encoder.Encode(tc.spaces[parts[len(parts)-2]].managers)
 				} else if len(parts) >= 3 {
 					encoder.Encode(tc.spaces[parts[3]].space)
 				} else {
