@@ -1,0 +1,36 @@
+groups:
+- name: customer-pipeline
+  jobs:
+  - notify-customers
+
+resource_types:
+- name: semver-iam
+  type: docker-image
+  source:
+    repository: governmentpaas/semver-resource
+
+resources:
+- name: buildpacks-updated
+  type: semver-iam
+  source:
+    bucket: cg-semver
+    driver: s3
+    key: buildpacks-updated
+    region_name: us-gov-west-1
+
+jobs:
+- name: notify-customers
+  plan:
+  - get: buildpacks-updated
+    trigger: true
+  - task: do-notify
+    file: buildpack-src/ci/notify.yml
+    params:
+      SMTP_FROM: ((smtp-from))
+      SMTP_PORT: ((smtp-port))
+      SMTP_PASS: ((smtp-pass))
+      SMTP_USER: ((smtp-user))
+      SMTP_HOST: ((smtp-host))
+      CF_API: ((cf-api-prod))
+      CLIENT_ID: ((client-id-prod))
+      CLIENT_SECRET: ((client-secret-prod))
