@@ -39,7 +39,7 @@ func main() {
 		ClientID:          os.Getenv("CLIENT_ID"),
 		ClientSecret:      os.Getenv("CLIENT_SECRET"),
 		SkipSslValidation: os.Getenv("INSECURE") == "1",
-		HttpClient:        &http.Client{Timeout: 10 * time.Second},
+		HttpClient:        &http.Client{Timeout: 30 * time.Second},
 	})
 	if err != nil {
 		log.Fatalf("Unable to create client. Error: %s", err.Error())
@@ -87,11 +87,13 @@ func isAppUsingOutdatedBuildpack(app cfclient.App, buildpack *cfclient.Buildpack
 	// 2016-06-08T16:41:45Z
 	timeOfLastAppRestage, err := time.Parse(time.RFC3339, app.PackageUpdatedAt)
 	if err != nil {
-		log.Fatal(err)
+		log.Fatalf("Unable to parse last restage time. App %s App GUID %s Error %s",
+			app.Name, app.Guid, err)
 	}
 	timeOfLastBuildpackUpdate, err := time.Parse(time.RFC3339, buildpack.Meta.UpdatedAt)
 	if err != nil {
-		log.Fatal(err)
+		log.Fatalf("Unable to parse last buildpack update time. Buildpack %s Buildpack GUID %s Error %s",
+			buildpack.Entity.Name, buildpack.Meta.Guid, err)
 	}
 	return timeOfLastBuildpackUpdate.After(timeOfLastAppRestage)
 }
@@ -175,6 +177,9 @@ func findOutdatedApps(apps []cfclient.App, buildpacks map[string]cfclient.Buildp
 	for _, app := range apps {
 		yes, buildpack := isAppUsingSupportedBuildpack(app, buildpacks)
 		if !yes {
+			continue
+		}
+		if app.State != "STARTED" {
 			continue
 		}
 		// If the app is using a supported buildpack, check if app is using an outdated buildpack.
