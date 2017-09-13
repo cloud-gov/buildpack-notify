@@ -1,7 +1,7 @@
 groups:
 - name: customer-pipeline
   jobs:
-  - notify-customers
+  - notify-customers-prod
 
 resource_types:
 - name: semver-iam
@@ -17,9 +17,14 @@ resources:
     driver: s3
     key: buildpacks-updated
     region_name: us-gov-west-1
+- name: notify-src
+  type: git
+  source:
+    uri: ((cg-buildpack-notify))
+    branch: ((cg-buildpack-notify-branch))
 
 jobs:
-- name: notify-customers
+- name: notify-customers-prod
   plan:
   - get: buildpacks-updated
     trigger: true
