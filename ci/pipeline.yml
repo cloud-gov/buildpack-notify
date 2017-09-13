@@ -28,8 +28,9 @@ jobs:
   plan:
   - get: buildpacks-updated
     trigger: true
+  - get: notify-src
   - task: do-notify
-    file: buildpack-src/ci/notify.yml
+    file: notify-src/ci/notify.yml
     params:
       SMTP_FROM: ((smtp-from))
       SMTP_PORT: ((smtp-port))
