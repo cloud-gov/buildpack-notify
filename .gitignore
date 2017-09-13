@@ -2,3 +2,5 @@ cg-buildpack-notify
 *.html.returned
 log.txt
 credentials.yml
+*.json
+!*example.json

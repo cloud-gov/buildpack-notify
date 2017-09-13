@@ -1,0 +1,5 @@
+{
+    "CF_API": "https://api.fr.cloud.gov",
+    "CLIENT_ID": "client-id-here",
+    "CLIENT_SECRET": "client-secret-here"
+}

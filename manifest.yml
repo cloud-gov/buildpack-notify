@@ -1,0 +1,9 @@
+---
+buildpack: go_buildpack
+memory: 256M
+services:
+- notify-cf-creds
+- notify-email-creds
+applications:
+- name: cg-buildpack-notify
+  no-route: true

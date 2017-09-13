@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"flag"
 	"fmt"
 	"log"
 	"net/http"
@@ -10,9 +11,15 @@ import (
 	"time"
 
 	cfclient "github.com/cloudfoundry-community/go-cfclient"
+	cfenv "github.com/cloudfoundry-community/go-cfenv"
 )
 
 // TODO: handle errors centrally.
+
+const (
+	cfUPSCreds    = "notify-cf-creds"
+	emailUPSCreds = "notify-email-creds"
+)
 
 type emailConfig struct {
 	from     string
@@ -22,11 +29,36 @@ type emailConfig struct {
 	user     string
 }
 
-func main() {
-	templates, err := initTemplates()
-	if err != nil {
-		log.Fatalf("Unable to initialize templates. Error: %s", err.Error())
+type cfConfig struct {
+	api          string
+	clientID     string
+	clientSecret string
+}
+
+func getCFConfig(cfEnv *cfenv.App) cfConfig {
+	config := cfConfig{
+		api:          os.Getenv("CF_API"),
+		clientID:     os.Getenv("CLIENT_ID"),
+		clientSecret: os.Getenv("CLIENT_SECRET"),
 	}
+	if cfEnv != nil {
+		if service, err := cfEnv.Services.WithName(cfUPSCreds); err == nil {
+			log.Println("Using UPS for CF creds")
+			if api, found := service.Credentials["CF_API"]; found {
+				config.api = api.(string)
+			}
+			if clientID, found := service.Credentials["CLIENT_ID"]; found {
+				config.clientID = clientID.(string)
+			}
+			if clientSecret, found := service.Credentials["CLIENT_SECRET"]; found {
+				config.clientSecret = clientSecret.(string)
+			}
+		}
+	}
+	return config
+}
+
+func getEmailConfig(cfEnv *cfenv.App) emailConfig {
 	config := emailConfig{
 		from:     os.Getenv("SMTP_FROM"),
 		host:     os.Getenv("SMTP_HOST"),
@@ -34,22 +66,67 @@ func main() {
 		port:     os.Getenv("SMTP_PORT"),
 		user:     os.Getenv("SMTP_USER"),
 	}
+	if cfEnv != nil {
+		if service, err := cfEnv.Services.WithName(emailUPSCreds); err == nil {
+			log.Println("Using UPS for email creds")
+			if smtpFrom, found := service.Credentials["SMTP_FROM"]; found {
+				config.from = smtpFrom.(string)
+			}
+			if smtpHost, found := service.Credentials["SMTP_HOST"]; found {
+				config.host = smtpHost.(string)
+			}
+			if smtpPass, found := service.Credentials["SMTP_PASS"]; found {
+				config.password = smtpPass.(string)
+			}
+			if smtpPort, found := service.Credentials["SMTP_PORT"]; found {
+				config.port = smtpPort.(string)
+			}
+			if smtpUser, found := service.Credentials["SMTP_USER"]; found {
+				config.user = smtpUser.(string)
+			}
+		}
+	}
+	return config
+}
+
+func main() {
+	cfEnv, err := cfenv.Current()
+	if err != nil {
+		log.Println("Could not find cf env")
+	}
+	config := getEmailConfig(cfEnv)
+	cfAPIConfig := getCFConfig(cfEnv)
+	templates, err := initTemplates()
+	if err != nil {
+		log.Fatalf("Unable to initialize templates. Error: %s", err.Error())
+	}
 	client, err := cfclient.NewClient(&cfclient.Config{
-		ApiAddress:        os.Getenv("CF_API"),
-		ClientID:          os.Getenv("CLIENT_ID"),
-		ClientSecret:      os.Getenv("CLIENT_SECRET"),
+		ApiAddress:        cfAPIConfig.api,
+		ClientID:          cfAPIConfig.clientID,
+		ClientSecret:      cfAPIConfig.clientSecret,
 		SkipSslValidation: os.Getenv("INSECURE") == "1",
 		HttpClient:        &http.Client{Timeout: 30 * time.Second},
 	})
 	if err != nil {
 		log.Fatalf("Unable to create client. Error: %s", err.Error())
 	}
-	mailer := InitSMTPMailer(config)
-	apps, buildpacks := getAppsAndBuildpacks(client)
-	outdatedApps := findOutdatedApps(apps, buildpacks)
-	owners := findOwnersOfApps(outdatedApps, client)
-	log.Printf("Will notify %d owners of outdated apps.\n", len(owners))
-	sendNotifyEmailToUsers(owners, templates, mailer)
+	notify := flag.Bool("notify", false, "run notification program")
+	flag.Parse()
+	if *notify {
+		log.Println("Calculating notifications to send for outdated buildpacks.")
+		mailer := InitSMTPMailer(config)
+		apps, buildpacks := getAppsAndBuildpacks(client)
+		outdatedApps := findOutdatedApps(apps, buildpacks)
+		owners := findOwnersOfApps(outdatedApps, client)
+		log.Printf("Will notify %d owners of outdated apps.\n", len(owners))
+		sendNotifyEmailToUsers(owners, templates, mailer)
+	} else {
+		log.Println("Starting notification server.")
+		err := http.ListenAndServe(":"+os.Getenv("PORT"), nil)
+		if err != nil {
+			log.Fatalf("Unable to start server. Error %s", err.Error())
+		}
+	}
 }
 
 func getAppsAndBuildpacks(client *cfclient.Client) ([]cfclient.App, map[string]cfclient.BuildpackResource) {

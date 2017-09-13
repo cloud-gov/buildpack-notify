@@ -2,6 +2,24 @@
 
 Toward proactively encouraging cloud.gov customers to restage their apps so they can benefit from buildpack updates.
 
+## Deploying
+
+### User Provided Services
+
+You need to copy the `*.example.json` credential files into `*.json` files.
+Fill them out then run the following commands:
+
+```sh
+cf cups notify-email-creds -l cf/notify_email_creds.json
+cf cups notify-cf-creds -l cf/notify_cf_creds.json
+```
+
+## Running `cf run-task`
+
+After the service is deployed, run:
+
+`cf run-task cg-buildpack-notify "bin/cg-buildpack-notify -notify"`
+
 ## Requirements
 
 Go v1.8+

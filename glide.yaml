@@ -5,3 +5,5 @@ import:
 - package: github.com/stretchr/testify
   subpackages:
   - mock
+- package: github.com/cloudfoundry-community/go-cfenv
+  version: ^1.17.0
