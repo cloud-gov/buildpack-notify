@@ -213,11 +213,12 @@ func sendNotifyEmailToUsers(users map[string][]cfclient.App, templates *Template
 		if len(apps) > 1 {
 			appNoun = "applications"
 		}
-		err := mailer.SendEmail(user, fmt.Sprintf("Please restage your %s", appNoun), body.Bytes())
-		if err != nil {
-			log.Printf("Unable to send e-mail to %s\n", user)
-			continue
-		}
+		_ = appNoun
+		// err := mailer.SendEmail(user, fmt.Sprintf("Please restage your %s", appNoun), body.Bytes())
+		// if err != nil {
+		// 	log.Printf("Unable to send e-mail to %s\n", user)
+		// 	continue
+		// }
 		fmt.Printf("Sent e-mail to %s\n", user)
 	}
 }

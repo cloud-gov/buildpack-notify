@@ -29,6 +29,7 @@ jobs:
   - get: buildpacks-updated
     trigger: true
   - get: notify-src
+    trigger: true
   - task: do-notify
     file: notify-src/ci/notify.yml
     params:
