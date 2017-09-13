@@ -10,13 +10,13 @@ resource_types:
     repository: governmentpaas/semver-resource
 
 resources:
-- name: buildpacks-updated
-  type: semver-iam
-  source:
-    bucket: cg-semver
-    driver: s3
-    key: buildpacks-updated
-    region_name: us-gov-west-1
+  #- name: buildpacks-updated
+  #  type: semver-iam
+  #  source:
+  #    bucket: cg-semver
+  #    driver: s3
+  #    key: buildpacks-updated
+  #    region_name: us-gov-west-1
 - name: notify-src
   type: git
   source:
@@ -26,8 +26,8 @@ resources:
 jobs:
 - name: notify-customers-prod
   plan:
-  - get: buildpacks-updated
-    trigger: true
+    #- get: buildpacks-updated
+    #- trigger: true
   - get: notify-src
     trigger: true
   - task: do-notify
@@ -39,5 +39,9 @@ jobs:
       SMTP_USER: ((smtp-user))
       SMTP_HOST: ((smtp-host))
       CF_API: ((cf-api-prod))
+      CF_ORGANIZATION: ((cf-org-prod))
+      CF_SPACE: ((cf-space-prod))
+      CF_USERNAME: ((deployer-username-prod))
+      CF_PASSWORD: ((deployer-password-prod))
       CLIENT_ID: ((client-id-prod))
       CLIENT_SECRET: ((client-secret-prod))
