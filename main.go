@@ -10,6 +10,10 @@ import (
 	"os"
 	"time"
 
+	"github.com/jinzhu/gorm"
+	_ "github.com/jinzhu/gorm/dialects/postgres"
+	_ "github.com/lib/pq"
+
 	cfclient "github.com/cloudfoundry-community/go-cfclient"
 	cfenv "github.com/cloudfoundry-community/go-cfenv"
 )
@@ -33,6 +37,43 @@ type cfConfig struct {
 	api          string
 	clientID     string
 	clientSecret string
+}
+
+type dbConfig struct {
+	databaseUrl string
+}
+
+type notifyStore interface {
+	GetBuildpacks() map[string]buildpackRecord
+	SaveBuildpack(*buildpackRecord)
+}
+
+type dbNotifyStore struct {
+	db *gorm.DB
+}
+
+func newDBNotifyStore(db *gorm.DB) notifyStore {
+	return &dbNotifyStore{db: db}
+}
+
+func (s *dbNotifyStore) GetBuildpacks() map[string]buildpackRecord {
+	m := make(map[string]buildpackRecord)
+
+	return m
+}
+
+func (s *dbNotifyStore) SaveBuildpack(buildpack *buildpackRecord) {
+
+}
+
+func dbConnect(dbConfig dbConfig) (*gorm.DB, error) {
+	return gorm.Open("postgres", dbConfig.databaseUrl)
+}
+
+func getDBConfig() dbConfig {
+	return dbConfig{
+		databaseUrl: os.Getenv("DATABASE_URL"),
+	}
 }
 
 func getCFConfig(cfEnv *cfenv.App) cfConfig {
@@ -95,7 +136,12 @@ func main() {
 		log.Println("Could not find cf env")
 	}
 	config := getEmailConfig(cfEnv)
+	dbConfig := getDBConfig()
 	cfAPIConfig := getCFConfig(cfEnv)
+	db, err := dbConnect(dbConfig)
+	if err != nil {
+		log.Fatalf("Unable to connect to database. Error: %s", err.Error())
+	}
 	templates, err := initTemplates()
 	if err != nil {
 		log.Fatalf("Unable to initialize templates. Error: %s", err.Error())
@@ -115,7 +161,8 @@ func main() {
 	if *notify {
 		log.Println("Calculating notifications to send for outdated buildpacks.")
 		mailer := InitSMTPMailer(config)
-		apps, buildpacks := getAppsAndBuildpacks(client)
+		store := newDBNotifyStore(db)
+		apps, buildpacks := getAppsAndBuildpacks(client, store)
 		outdatedApps := findOutdatedApps(apps, buildpacks)
 		owners := findOwnersOfApps(outdatedApps, client)
 		log.Printf("Will notify %d owners of outdated apps.\n", len(owners))
@@ -129,20 +176,71 @@ func main() {
 	}
 }
 
-func getAppsAndBuildpacks(client *cfclient.Client) ([]cfclient.App, map[string]cfclient.BuildpackResource) {
+type buildpackRecord struct {
+	gorm.Model
+	Guid      string
+	UpdatedAt string
+}
+
+func filterForNewlyUpdatedBuildpacks(buildpacks []cfclient.BuildpackResource, store notifyStore) []cfclient.BuildpackResource {
+	filteredBuildpacks := []cfclient.BuildpackResource{}
+	storedBuildpacks := store.GetBuildpacks()
+	// Go through the passed in buildpacks
+	// Check if current buildpack.guid matches a guid in storeBuildpacks
+	// 1) If so, compare the buildpack.Meta.UpdatedAt with the storeBuildpack.UpdatedAt
+	// 1a)   If buildpack.Meta.UpdatedAt (updated recently) > storeBuildpack.UpdatedAt,
+	//       then add to filteredBuildpacks and updated database
+	// 1b)   Else, continue
+	// 2) If not, add to filteredBuildpacks and updated database
+	// for buildpacks return buildpack.guid in stored.
+
+	for _, buildpack := range buildpacks {
+		storedBuildpack, found := storedBuildpacks[buildpack.Meta.Guid]
+		if !found {
+			filteredBuildpacks = append(filteredBuildpacks, buildpack)
+			store.SaveBuildpack(&buildpackRecord{Guid: buildpack.Meta.Guid, UpdatedAt: buildpack.Meta.UpdatedAt})
+		} else {
+			buildpackUpdatedAt, err := time.Parse(time.RFC3339, buildpack.Meta.UpdatedAt)
+			if err != nil {
+				log.Fatalf("Unable to parse buildpack updatedAt time. Buildpack GUID %s Error %s",
+					buildpack.Meta.Guid, err)
+			}
+			storedBuildpackUpdatedAt, err := time.Parse(time.RFC3339, storedBuildpack.UpdatedAt)
+			if err != nil {
+				log.Fatalf("Unable to parse stored buildpack updatedAt time. Buildpack GUID %s Error %s",
+					storedBuildpack.Guid, err)
+			}
+
+			if buildpackUpdatedAt.After(storedBuildpackUpdatedAt) {
+				filteredBuildpacks = append(filteredBuildpacks, buildpack)
+				storedBuildpack.UpdatedAt = buildpack.Meta.UpdatedAt
+				store.SaveBuildpack(&storedBuildpack)
+			} else {
+				continue
+			}
+		}
+
+	}
+
+	return filteredBuildpacks
+}
+
+func getAppsAndBuildpacks(client *cfclient.Client, store notifyStore) ([]cfclient.App, map[string]cfclient.BuildpackResource) {
 	apps, err := client.ListApps()
 	if err != nil {
 		log.Fatalf("Unable to get apps. Error: %s", err.Error())
 	}
+	// Get all the buildpacks from our CF deployment via CF_API.
 	buildpackList, err := listBuildpacks(client)
 	if err != nil {
 		log.Fatalf("Unable to get buildpacks. Error: %s", err)
 	}
+	filteredBuildpackList := filterForNewlyUpdatedBuildpacks(buildpackList, store)
 
 	// Create a map with the key being the buildpack name for quick comparison later on.
 	// Buildpack names are unique so that can be a key.
 	buildpacks := make(map[string]cfclient.BuildpackResource)
-	for _, buildpack := range buildpackList {
+	for _, buildpack := range filteredBuildpackList {
 		buildpacks[buildpack.Entity.Name] = buildpack
 	}
 	return apps, buildpacks

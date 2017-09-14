@@ -1,5 +1,5 @@
-hash: a7aac87ba7312131b74f6c41e01d5c761a8da7d7a88264b60358c7496364d97c
-updated: 2017-09-13T14:40:15.272090148-04:00
+hash: e4fa99eff5aed212cee83d5ab3c1b8b363403a60e993e251ca45a2fad535a361
+updated: 2017-09-14T12:04:29.424770304-04:00
 imports:
 - name: github.com/cloudfoundry-community/go-cfclient
   version: 983f0bf32d53fef86f65c095ecb693acf8a8d95e
@@ -13,10 +13,16 @@ imports:
   version: 874264fbbb43f4d91e999fecb4b40143ed611400
   subpackages:
   - proto
-  - proto/testdata
-  - ptypes/any
+- name: github.com/jinzhu/gorm
+  version: b1885a643b4977c9089d77eb07c0fd96591f94b8
+  subpackages:
+  - dialects/postgres
+- name: github.com/jinzhu/inflection
+  version: 1c35d901db3da928c72a72d8458480cc9ade058f
 - name: github.com/jordan-wright/email
   version: 09f803b133a9229292871a003eb1a5b077fb32b2
+- name: github.com/lib/pq
+  version: e42267488fe361b9dc034be7a6bffef5b195bceb
 - name: github.com/mitchellh/mapstructure
   version: d2dd0262208475919e1a362f675cfc0e7c10e905
 - name: github.com/pkg/errors
@@ -36,44 +42,19 @@ imports:
   version: db8e4de5b2d6653f66aea53094624468caad15d2
   subpackages:
   - context
-  - context/ctxhttp
 - name: golang.org/x/oauth2
   version: b5adcc2dcdf009d0391547edc6ecbaff889f5bb9
   subpackages:
   - clientcredentials
   - internal
-  - jws
-  - jwt
 - name: google.golang.org/appengine
   version: e234e71924d4aa52444bc76f2f831f13fa1eca60
   subpackages:
-  - datastore
   - internal
-  - internal/app_identity
   - internal/base
-  - internal/blobstore
-  - internal/capability
-  - internal/channel
   - internal/datastore
-  - internal/image
   - internal/log
-  - internal/mail
-  - internal/memcache
-  - internal/modules
   - internal/remote_api
-  - internal/search
-  - internal/socket
-  - internal/system
-  - internal/taskqueue
   - internal/urlfetch
-  - internal/user
-  - internal/xmpp
-  - log
-  - taskqueue
   - urlfetch
-  - user
-- name: google.golang.org/cloud
-  version: c58be25102a7ab66b9e32676c23c6beda97a1449
-  subpackages:
-  - compute/metadata
 testImports: []

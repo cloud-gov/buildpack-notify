@@ -4,6 +4,7 @@ memory: 256M
 services:
 - notify-cf-creds
 - notify-email-creds
+- buildpack-notify-db
 applications:
 - name: cg-buildpack-notify
   no-route: true
