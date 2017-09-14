@@ -53,16 +53,34 @@ type dbNotifyStore struct {
 }
 
 func newDBNotifyStore(db *gorm.DB) notifyStore {
+	db.AutoMigrate(&buildpackRecord{})
 	return &dbNotifyStore{db: db}
 }
 
 func (s *dbNotifyStore) GetBuildpacks() map[string]buildpackRecord {
-	m := make(map[string]buildpackRecord)
-
+	buildpacks := []buildpackRecord{}
+	err := s.db.Find(&buildpacks).Error
+	if err != nil {
+		log.Fatalf("Unable to get buildpack records from notify database. Error: %s", err.Error())
+	}
+	m := make(map[string]buildpackRecord, len(buildpacks))
+	for _, buildpack := range buildpacks {
+		m[buildpack.Guid] = buildpack
+	}
 	return m
 }
 
 func (s *dbNotifyStore) SaveBuildpack(buildpack *buildpackRecord) {
+	newRecord := s.db.NewRecord(buildpack)
+	var err error
+	if newRecord {
+		err = s.db.Create(buildpack).Error
+	} else {
+		err = s.db.Save(buildpack).Error
+	}
+	if err != nil {
+		log.Fatalf("Unable to save record for buildpack. Guid: %s. Error %s", buildpack.Guid, err.Error())
+	}
 
 }
 
