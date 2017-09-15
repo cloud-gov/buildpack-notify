@@ -45,7 +45,7 @@ make deploy
 
 # Run buildpack notify app
 pushd ../../
-go build && ./cg-buildpack-notify > log.txt
+go build && ./cg-buildpack-notify -notify > log.txt
 ## show the log.
 echo "Showing run log.."
 cat log.txt
@@ -66,7 +66,7 @@ cf update-buildpack $BUILDPACK_NAME -p $BUILDPACK_VERSION_2_ZIP -i 100 --enable
 
 # Run buildpack notify app
 pushd ../../
-go build && ./cg-buildpack-notify > log.txt
+go build && ./cg-buildpack-notify -notify > log.txt
 ## show the log.
 echo "Showing run log.."
 cat log.txt
@@ -83,11 +83,11 @@ fi
 popd
 
 # deploy the app again
-make deploy
+cf restage dummy-app
 
 # Run buildpack notify app
 pushd ../../
-go build && ./cg-buildpack-notify > log.txt
+go build && ./cg-buildpack-notify -notify > log.txt
 ## show the log.
 echo "Showing run log.."
 cat log.txt
