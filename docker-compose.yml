@@ -5,3 +5,7 @@ services:
     ports:
       - "8025:80" # for the web UI
       - "2525:25"
+  db:
+    image: "postgres:9.6.5"
+    ports:
+      - "5555:5432"
