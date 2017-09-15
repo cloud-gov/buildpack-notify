@@ -49,12 +49,17 @@ type notifyStore interface {
 }
 
 type dbNotifyStore struct {
-	db *gorm.DB
+	db     *gorm.DB
+	dryRun bool
 }
 
-func newDBNotifyStore(db *gorm.DB) notifyStore {
+func newDBNotifyStore(db *gorm.DB, clear, dryRun bool) notifyStore {
+	if clear {
+		log.Println("Dropping tables...")
+		db.DropTableIfExists(&buildpackRecord{})
+	}
 	db.AutoMigrate(&buildpackRecord{})
-	return &dbNotifyStore{db: db}
+	return &dbNotifyStore{db: db, dryRun: dryRun}
 }
 
 func (s *dbNotifyStore) GetBuildpacks() map[string]buildpackRecord {
@@ -71,6 +76,10 @@ func (s *dbNotifyStore) GetBuildpacks() map[string]buildpackRecord {
 }
 
 func (s *dbNotifyStore) SaveBuildpack(buildpack *buildpackRecord) {
+	log.Printf("Saving / updating buildpack %s", buildpack.Guid)
+	if s.dryRun {
+		return
+	}
 	newRecord := s.db.NewRecord(buildpack)
 	var err error
 	if newRecord {
@@ -174,17 +183,22 @@ func main() {
 	if err != nil {
 		log.Fatalf("Unable to create client. Error: %s", err.Error())
 	}
+	clear := flag.Bool("clear", false, "clear database tables of values")
 	notify := flag.Bool("notify", false, "run notification program")
+	dryRun := flag.Bool("dry-run", false, "run the program without actual modifications or sending")
 	flag.Parse()
+	store := newDBNotifyStore(db, *clear, *dryRun)
+	if *dryRun {
+		log.Println("Dry-Run mode activated. No modifications happening")
+	}
 	if *notify {
 		log.Println("Calculating notifications to send for outdated buildpacks.")
 		mailer := InitSMTPMailer(config)
-		store := newDBNotifyStore(db)
 		apps, buildpacks := getAppsAndBuildpacks(client, store)
 		outdatedApps := findOutdatedApps(apps, buildpacks)
 		owners := findOwnersOfApps(outdatedApps, client)
 		log.Printf("Will notify %d owners of outdated apps.\n", len(owners))
-		sendNotifyEmailToUsers(owners, templates, mailer)
+		sendNotifyEmailToUsers(owners, templates, mailer, *dryRun)
 	} else {
 		log.Println("Starting notification server.")
 		err := http.ListenAndServe(":"+os.Getenv("PORT"), nil)
@@ -395,7 +409,7 @@ func spaceUserHasRoles(user cfclient.SpaceRole, roles ...string) bool {
 	return false
 }
 
-func sendNotifyEmailToUsers(users map[string][]cfclient.App, templates *Templates, mailer Mailer) {
+func sendNotifyEmailToUsers(users map[string][]cfclient.App, templates *Templates, mailer Mailer, dryRun bool) {
 	for user, apps := range users {
 		// Create buffer
 		body := new(bytes.Buffer)
@@ -406,12 +420,13 @@ func sendNotifyEmailToUsers(users map[string][]cfclient.App, templates *Template
 		if len(apps) > 1 {
 			appNoun = "applications"
 		}
-		_ = appNoun
-		// err := mailer.SendEmail(user, fmt.Sprintf("Please restage your %s", appNoun), body.Bytes())
-		// if err != nil {
-		// 	log.Printf("Unable to send e-mail to %s\n", user)
-		// 	continue
-		// }
+		if !dryRun {
+			err := mailer.SendEmail(user, fmt.Sprintf("Please restage your %s", appNoun), body.Bytes())
+			if err != nil {
+				log.Printf("Unable to send e-mail to %s\n", user)
+				continue
+			}
+		}
 		fmt.Printf("Sent e-mail to %s\n", user)
 	}
 }
