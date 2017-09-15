@@ -196,8 +196,8 @@ func main() {
 
 type buildpackRecord struct {
 	gorm.Model
-	Guid      string
-	UpdatedAt string
+	Guid          string
+	LastUpdatedAt string
 }
 
 func filterForNewlyUpdatedBuildpacks(buildpacks []cfclient.BuildpackResource, store notifyStore) []cfclient.BuildpackResource {
@@ -205,8 +205,8 @@ func filterForNewlyUpdatedBuildpacks(buildpacks []cfclient.BuildpackResource, st
 	storedBuildpacks := store.GetBuildpacks()
 	// Go through the passed in buildpacks
 	// Check if current buildpack.guid matches a guid in storeBuildpacks
-	// 1) If so, compare the buildpack.Meta.UpdatedAt with the storeBuildpack.UpdatedAt
-	// 1a)   If buildpack.Meta.UpdatedAt (updated recently) > storeBuildpack.UpdatedAt,
+	// 1) If so, compare the buildpack.Meta.UpdatedAt with the storeBuildpack.LastUpdatedAt
+	// 1a)   If buildpack.Meta.UpdatedAt (updated recently) > storeBuildpack.LastUpdatedAt,
 	//       then add to filteredBuildpacks and updated database
 	// 1b)   Else, continue
 	// 2) If not, add to filteredBuildpacks and updated database
@@ -216,22 +216,22 @@ func filterForNewlyUpdatedBuildpacks(buildpacks []cfclient.BuildpackResource, st
 		storedBuildpack, found := storedBuildpacks[buildpack.Meta.Guid]
 		if !found {
 			filteredBuildpacks = append(filteredBuildpacks, buildpack)
-			store.SaveBuildpack(&buildpackRecord{Guid: buildpack.Meta.Guid, UpdatedAt: buildpack.Meta.UpdatedAt})
+			store.SaveBuildpack(&buildpackRecord{Guid: buildpack.Meta.Guid, LastUpdatedAt: buildpack.Meta.UpdatedAt})
 		} else {
 			buildpackUpdatedAt, err := time.Parse(time.RFC3339, buildpack.Meta.UpdatedAt)
 			if err != nil {
 				log.Fatalf("Unable to parse buildpack updatedAt time. Buildpack GUID %s Error %s",
 					buildpack.Meta.Guid, err)
 			}
-			storedBuildpackUpdatedAt, err := time.Parse(time.RFC3339, storedBuildpack.UpdatedAt)
+			storedBuildpackUpdatedAt, err := time.Parse(time.RFC3339, storedBuildpack.LastUpdatedAt)
 			if err != nil {
-				log.Fatalf("Unable to parse stored buildpack updatedAt time. Buildpack GUID %s Error %s",
+				log.Fatalf("Unable to parse stored buildpack LastUpdatedAt time. Buildpack GUID %s Error %s",
 					storedBuildpack.Guid, err)
 			}
 
 			if buildpackUpdatedAt.After(storedBuildpackUpdatedAt) {
 				filteredBuildpacks = append(filteredBuildpacks, buildpack)
-				storedBuildpack.UpdatedAt = buildpack.Meta.UpdatedAt
+				storedBuildpack.LastUpdatedAt = buildpack.Meta.UpdatedAt
 				store.SaveBuildpack(&storedBuildpack)
 			} else {
 				continue
