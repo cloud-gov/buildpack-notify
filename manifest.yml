@@ -8,3 +8,5 @@ services:
 applications:
 - name: cg-buildpack-notify
   no-route: true
+env:
+  GOPACKAGENAME: github.com/18F/cg-buildpack-notify

@@ -5,3 +5,4 @@ credentials.yml
 *.json
 !*example.json
 vendor/
+ci/*.lock
