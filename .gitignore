@@ -4,3 +4,4 @@ log.txt
 credentials.yml
 *.json
 !*example.json
+vendor/
