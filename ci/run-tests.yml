@@ -1,0 +1,15 @@
+---
+platform: linux
+
+image_resource:
+  type: docker-image
+  source:
+    repository: billyteves/alpine-golang-glide
+    tag: "1.2.0"
+
+inputs:
+- name: notify-src
+  path: gopath/src/github.com/18F/cg-buildpack-notify
+
+run:
+  path: gopath/src/github.com/18F/cg-buildpack-notify/ci/run-tests.sh

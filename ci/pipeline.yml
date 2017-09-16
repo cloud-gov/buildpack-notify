@@ -1,7 +1,9 @@
 groups:
 - name: customer-pipeline
   jobs:
-  - notify-customers
+  - notify-customers-prod
+  - test-cg-buildpack-notify
+  - push-cg-buildpack-notify-production
 
 resource_types:
 - name: semver-iam
@@ -10,21 +12,47 @@ resource_types:
     repository: governmentpaas/semver-resource
 
 resources:
-- name: buildpacks-updated
-  type: semver-iam
+- name: check-buildpack-updates
+  type: time
+  source: {interval: 60m}
+- name: notify-src
+  type: git
   source:
-    bucket: cg-semver
-    driver: s3
-    key: buildpacks-updated
-    region_name: us-gov-west-1
+    uri: ((cg-buildpack-notify))
+    branch: ((cg-buildpack-notify-branch))
+- name: cg-buildpack-notify-deploy-production
+  type: cf
+  source:
+    api: ((cf-api-prod))
+    username: ((deployer-username-prod))
+    password: ((deployer-password-prod))
+    organization: ((cf-org-prod))
+    space: ((cf-space-prod))
 
 jobs:
-- name: notify-customers
+- name: test-cg-buildpack-notify
   plan:
-  - get: buildpacks-updated
+  - get: notify-src
     trigger: true
+  - task: run-tests
+    file: notify-src/ci/run-tests.yml
+- name: push-cg-buildpack-notify-production
+  plan:
+  - aggregate:
+    - get: notify-src
+      passed: [test-cg-buildpack-notify]
+      trigger: true
+  - put: cg-buildpack-notify-deploy-production
+    params:
+      path: notify-src
+      manifest: notify-src/manifest.yml
+- name: notify-customers-prod
+  plan:
+  - get: check-buildpack-updates
+    trigger: true
+  - get: notify-src
   - task: do-notify
-    file: buildpack-src/ci/notify.yml
+    file: notify-src/ci/notify.yml
     params:
       SMTP_FROM: ((smtp-from))
       SMTP_PORT: ((smtp-port))
@@ -32,5 +60,10 @@ jobs:
       SMTP_USER: ((smtp-user))
       SMTP_HOST: ((smtp-host))
       CF_API: ((cf-api-prod))
+      CF_ORGANIZATION: ((cf-org-prod))
+      CF_SPACE: ((cf-space-prod))
+      CF_USERNAME: ((deployer-username-prod))
+      CF_PASSWORD: ((deployer-password-prod))
       CLIENT_ID: ((client-id-prod))
       CLIENT_SECRET: ((client-secret-prod))
+      ADDITIONAL_ARGS: ((additional-args))

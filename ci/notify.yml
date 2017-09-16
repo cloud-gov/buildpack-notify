@@ -2,19 +2,23 @@ platform: linux
 image_resource:
   type: docker-image
   source:
-    repository: golang
-    tag: "1.8-alpine"
+    repository: 18fgsa/concourse-task
 inputs:
 - name: notify-src
   path: gopath/src/github.com/18F/cg-buildpack-notify
 run:
   path: gopath/src/github.com/18F/cg-buildpack-notify/ci/notify.sh
-  params:
-    SMTP_FROM: ((smtp-from))
-    SMTP_PORT: ((smtp-port))
-    SMTP_PASS: ((smtp-pass))
-    SMTP_USER: ((smtp-user))
-    SMTP_HOST: ((smtp-host))
-    CF_API: ((cf-api-prod))
-    CLIENT_ID: ((client-id-prod))
-    CLIENT_SECRET: ((client-secret-prod))
+params:
+  SMTP_FROM:
+  SMTP_PORT:
+  SMTP_PASS:
+  SMTP_USER:
+  SMTP_HOST:
+  CF_API:
+  CF_ORGANIZATION:
+  CF_SPACE:
+  CF_USERNAME:
+  CF_PASSWORD:
+  CLIENT_ID:
+  CLIENT_SECRET:
+  ADDITIONAL_ARGS:

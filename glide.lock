@@ -1,8 +1,10 @@
-hash: c3c3b622be346385db69670b3c202ae8f1d927fc1399fea10a4907b70c0d024c
-updated: 2017-09-08T16:23:28.992374726-04:00
+hash: e4fa99eff5aed212cee83d5ab3c1b8b363403a60e993e251ca45a2fad535a361
+updated: 2017-09-14T12:04:29.424770304-04:00
 imports:
 - name: github.com/cloudfoundry-community/go-cfclient
   version: 983f0bf32d53fef86f65c095ecb693acf8a8d95e
+- name: github.com/cloudfoundry-community/go-cfenv
+  version: f920e9562d5f951cbf11785728f67258c38a10d0
 - name: github.com/davecgh/go-spew
   version: 6d212800a42e8ab5c146b8ace3490ee17e5225f9
   subpackages:
@@ -11,8 +13,18 @@ imports:
   version: 874264fbbb43f4d91e999fecb4b40143ed611400
   subpackages:
   - proto
+- name: github.com/jinzhu/gorm
+  version: b1885a643b4977c9089d77eb07c0fd96591f94b8
+  subpackages:
+  - dialects/postgres
+- name: github.com/jinzhu/inflection
+  version: 1c35d901db3da928c72a72d8458480cc9ade058f
 - name: github.com/jordan-wright/email
   version: 09f803b133a9229292871a003eb1a5b077fb32b2
+- name: github.com/lib/pq
+  version: e42267488fe361b9dc034be7a6bffef5b195bceb
+- name: github.com/mitchellh/mapstructure
+  version: d2dd0262208475919e1a362f675cfc0e7c10e905
 - name: github.com/pkg/errors
   version: c605e284fe17294bda444b34710735b29d1a9d90
 - name: github.com/pmezard/go-difflib

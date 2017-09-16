@@ -2,10 +2,6 @@
 
 set -e -x
 
-export GOPATH=$(pwd)/gopath
+cf login -a $CF_API -u $CF_USERNAME -p $CF_PASSWORD -o $CF_ORGANIZATION -s $CF_SPACE
 
-cd gopath/src/github.com/18F/cg-buildpack-notify
-
-go build
-
-./cg-buildpack-notify
+cf run-task cg-buildpack-notify "bin/cg-buildpack-notify -notify $ADDITIONAL_ARGS"

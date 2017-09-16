@@ -383,7 +383,7 @@ func TestSendNotifyEmailToUsers(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			mockMailer := new(mocks.Mailer)
 			mockMailer.On("SendEmail", mock.Anything, mock.Anything, mock.Anything).Return(nil)
-			sendNotifyEmailToUsers(tc.usersAndApps, templates, mockMailer)
+			sendNotifyEmailToUsers(tc.usersAndApps, templates, mockMailer, false)
 			if !mockMailer.AssertNumberOfCalls(t, "SendEmail", len(tc.expectedCalls)) {
 				t.Errorf("Did not call send e-mail the number of expected times")
 				t.Log(len(mockMailer.Calls))
