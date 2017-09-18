@@ -1,15 +1,13 @@
-groups:
-- name: customer-pipeline
-  jobs:
-  - notify-customers-prod
-  - test-cg-buildpack-notify
-  - push-cg-buildpack-notify-production
-
 resource_types:
 - name: semver-iam
   type: docker-image
   source:
     repository: governmentpaas/semver-resource
+
+- name: pull-request
+  type: docker-image
+  source:
+    repository: jtarchie/pr
 
 resources:
 - name: check-buildpack-updates
@@ -28,8 +26,37 @@ resources:
     password: ((deployer-password-prod))
     organization: ((cf-org-prod))
     space: ((cf-space-prod))
+- name: pull-request
+  type: pull-request
+  source:
+    repo: ((cg-buildpack-notify-github-repo-name))
+    access_token: ((status-access-token))
+    every: true
 
 jobs:
+- name: pull-status-check
+  plan:
+  - get: pull-request
+    version: every
+    trigger: true
+  - put: pull-request
+    params:
+      path: pull-request
+      status: pending
+  - task: build
+    input_mapping:
+      notify-src: pull-request
+    file: pull-request/ci/run-tests.yml
+    on_success:
+      put: pull-request
+      params:
+        path: pull-request
+        status: success
+    on_failure:
+      put: pull-request
+      params:
+        path: pull-request
+        status: failure
 - name: test-cg-buildpack-notify
   plan:
   - get: notify-src
