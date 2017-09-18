@@ -421,7 +421,7 @@ func sendNotifyEmailToUsers(users map[string][]cfclient.App, templates *Template
 			appNoun = "applications"
 		}
 		if !dryRun {
-			err := mailer.SendEmail(user, fmt.Sprintf("Please restage your %s", appNoun), body.Bytes())
+			err := mailer.SendEmail(user, fmt.Sprintf("Action required: restage your %s", appNoun), body.Bytes())
 			if err != nil {
 				log.Printf("Unable to send e-mail to %s\n", user)
 				continue
