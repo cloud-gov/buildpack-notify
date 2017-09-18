@@ -413,13 +413,14 @@ func sendNotifyEmailToUsers(users map[string][]cfclient.App, templates *Template
 	for user, apps := range users {
 		// Create buffer
 		body := new(bytes.Buffer)
-		// Fill buffer with completed e-mail
-		templates.getNotifyEmail(body, notifyEmail{user, apps})
-		// Send email
+		// Determine whether the user has one application or more than one.
 		appNoun := "application"
 		if len(apps) > 1 {
 			appNoun = "applications"
 		}
+		// Fill buffer with completed e-mail
+		templates.getNotifyEmail(body, notifyEmail{user, apps, appNoun})
+		// Send email
 		if !dryRun {
 			err := mailer.SendEmail(user, fmt.Sprintf("Action required: restage your %s", appNoun), body.Bytes())
 			if err != nil {
