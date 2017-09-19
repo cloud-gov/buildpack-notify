@@ -287,7 +287,7 @@ func TestSendNotifyEmailToUsers(t *testing.T) {
 						},
 						"application",
 					},
-					"Please restage your application",
+					"Action required: restage your application",
 				},
 			},
 		},
@@ -368,7 +368,7 @@ func TestSendNotifyEmailToUsers(t *testing.T) {
 						},
 						"applications",
 					},
-					"Please restage your applications",
+					"Action required: restage your applications",
 				},
 				{
 					notifyEmail{
@@ -379,7 +379,7 @@ func TestSendNotifyEmailToUsers(t *testing.T) {
 						},
 						"applications",
 					},
-					"Please restage your applications",
+					"Action required: restage your applications",
 				},
 			},
 		},
