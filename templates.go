@@ -54,7 +54,7 @@ func (t *Templates) getTemplate(templateKey string) (*template.Template, error) 
 type notifyEmail struct {
 	Username string
 	Apps     []cfclient.App
-	appNoun  string
+	AppNoun  string
 }
 
 // getNotifyEmail gets the filled in notify email template.
