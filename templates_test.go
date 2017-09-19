@@ -18,7 +18,7 @@ func TestGetNotifyEmail(t *testing.T) {
 	}{
 		{
 			"single app",
-			notifyEmail{"test.com", []cfclient.App{{Name: "my-drupal-app",
+			notifyEmail{"test@example.com", []cfclient.App{{Name: "my-drupal-app",
 				SpaceData: cfclient.SpaceResource{Entity: cfclient.Space{Name: "dev",
 					OrgData: cfclient.OrgResource{Entity: cfclient.Org{Name: "sandbox"}},
 				}},
