@@ -42,7 +42,7 @@ func TestGetNotifyEmail(t *testing.T) {
 				t.Fatalf("Unable to read expected file. %s", err.Error())
 			}
 			if string(expectedBody) != string(body.Bytes()) {
-				t.Errorf("Test %s failed. Check the *.returned for the actual.", tc.name)
+				t.Errorf("Test %s failed. For the actual output, inspect %s.returned.", tc.name, filepath.Base(tc.expectedEmail))
 				ioutil.WriteFile(filepath.Join(rootDataPath, filepath.Base(tc.expectedEmail)+".returned"), body.Bytes(), 0444)
 			}
 		})
