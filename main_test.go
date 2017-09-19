@@ -285,6 +285,7 @@ func TestSendNotifyEmailToUsers(t *testing.T) {
 						[]cfclient.App{
 							{Name: "testapp"},
 						},
+						"application",
 					},
 					"Please restage your application",
 				},
@@ -365,6 +366,7 @@ func TestSendNotifyEmailToUsers(t *testing.T) {
 							{Name: "testapp1"},
 							{Name: "testapp2"},
 						},
+						"applications",
 					},
 					"Please restage your applications",
 				},
@@ -375,6 +377,7 @@ func TestSendNotifyEmailToUsers(t *testing.T) {
 							{Name: "testapp3"},
 							{Name: "testapp4"},
 						},
+						"applications",
 					},
 					"Please restage your applications",
 				},

@@ -22,7 +22,7 @@ func TestGetNotifyEmail(t *testing.T) {
 				SpaceData: cfclient.SpaceResource{Entity: cfclient.Space{Name: "dev",
 					OrgData: cfclient.OrgResource{Entity: cfclient.Org{Name: "sandbox"}},
 				}},
-			}}},
+			}}, "application"},
 			filepath.Join(rootDataPath, "single_app.html"),
 		},
 	}
