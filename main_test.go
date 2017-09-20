@@ -274,26 +274,27 @@ func TestSendNotifyEmailToUsers(t *testing.T) {
 		{
 			"single user, single app",
 			map[string][]cfclient.App{
-				"james": []cfclient.App{
+				"james@example.com": []cfclient.App{
 					{Name: "testapp"},
 				},
 			},
 			[]testNotifyEmail{
 				{
 					notifyEmail{
-						"james",
+						"james@example.com",
 						[]cfclient.App{
 							{Name: "testapp"},
 						},
+						"application",
 					},
-					"Please restage your application",
+					"Action required: restage your application",
 				},
 			},
 		},
 		{
 			"single user, multiple apps",
 			map[string][]cfclient.App{
-				"james": []cfclient.App{
+				"james@example.com": []cfclient.App{
 					{Name: "testapp1"},
 					{Name: "testapp2"},
 				},
@@ -301,55 +302,58 @@ func TestSendNotifyEmailToUsers(t *testing.T) {
 			[]testNotifyEmail{
 				{
 					notifyEmail{
-						"james",
+						"james@example.com",
 						[]cfclient.App{
 							{Name: "testapp1"},
 							{Name: "testapp2"},
 						},
+						"applications",
 					},
-					"Please restage your applications",
+					"Action required: restage your applications",
 				},
 			},
 		},
 		{
 			"multiple users, each with a single app",
 			map[string][]cfclient.App{
-				"james": []cfclient.App{
+				"james@example.com": []cfclient.App{
 					{Name: "testapp1"},
 				},
-				"bob": []cfclient.App{
+				"bob@example.com": []cfclient.App{
 					{Name: "testapp2"},
 				},
 			},
 			[]testNotifyEmail{
 				{
 					notifyEmail{
-						"james",
+						"james@example.com",
 						[]cfclient.App{
 							{Name: "testapp1"},
 						},
+						"application",
 					},
-					"Please restage your application",
+					"Action required: restage your application",
 				},
 				{
 					notifyEmail{
-						"bob",
+						"bob@example.com",
 						[]cfclient.App{
 							{Name: "testapp2"},
 						},
+						"application",
 					},
-					"Please restage your application",
+					"Action required: restage your application",
 				},
 			},
 		},
 		{
 			"multiple users, each with multiple apps",
 			map[string][]cfclient.App{
-				"james": []cfclient.App{
+				"james@example.com": []cfclient.App{
 					{Name: "testapp1"},
 					{Name: "testapp2"},
 				},
-				"bob": []cfclient.App{
+				"bob@example.com": []cfclient.App{
 					{Name: "testapp3"},
 					{Name: "testapp4"},
 				},
@@ -357,23 +361,25 @@ func TestSendNotifyEmailToUsers(t *testing.T) {
 			[]testNotifyEmail{
 				{
 					notifyEmail{
-						"james",
+						"james@example.com",
 						[]cfclient.App{
 							{Name: "testapp1"},
 							{Name: "testapp2"},
 						},
+						"applications",
 					},
-					"Please restage your applications",
+					"Action required: restage your applications",
 				},
 				{
 					notifyEmail{
-						"bob",
+						"bob@example.com",
 						[]cfclient.App{
 							{Name: "testapp3"},
 							{Name: "testapp4"},
 						},
+						"applications",
 					},
-					"Please restage your applications",
+					"Action required: restage your applications",
 				},
 			},
 		},

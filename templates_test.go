@@ -18,12 +18,28 @@ func TestGetNotifyEmail(t *testing.T) {
 	}{
 		{
 			"single app",
-			notifyEmail{"test.com", []cfclient.App{{Name: "my-drupal-app",
+			notifyEmail{"test@example.com", []cfclient.App{{Name: "my-drupal-app",
 				SpaceData: cfclient.SpaceResource{Entity: cfclient.Space{Name: "dev",
 					OrgData: cfclient.OrgResource{Entity: cfclient.Org{Name: "sandbox"}},
 				}},
-			}}},
+			}}, "application"},
 			filepath.Join(rootDataPath, "single_app.html"),
+		},
+		{
+			"multiple apps",
+			notifyEmail{"test@example.com", []cfclient.App{
+				{Name: "my-drupal-app",
+					SpaceData: cfclient.SpaceResource{Entity: cfclient.Space{Name: "dev",
+						OrgData: cfclient.OrgResource{Entity: cfclient.Org{Name: "sandbox"}},
+					}},
+				},
+				{Name: "my-wordpress-app",
+					SpaceData: cfclient.SpaceResource{Entity: cfclient.Space{Name: "staging",
+						OrgData: cfclient.OrgResource{Entity: cfclient.Org{Name: "paid-org"}},
+					}},
+				},
+			}, "applications"},
+			filepath.Join(rootDataPath, "multiple_apps.html"),
 		},
 	}
 	for _, tc := range testCases {
@@ -42,7 +58,7 @@ func TestGetNotifyEmail(t *testing.T) {
 				t.Fatalf("Unable to read expected file. %s", err.Error())
 			}
 			if string(expectedBody) != string(body.Bytes()) {
-				t.Errorf("Test %s failed. Check the *.returned for the actual.", tc.name)
+				t.Errorf("Test %s failed. For the actual output, inspect %s.returned.", tc.name, filepath.Base(tc.expectedEmail))
 				ioutil.WriteFile(filepath.Join(rootDataPath, filepath.Base(tc.expectedEmail)+".returned"), body.Bytes(), 0444)
 			}
 		})
