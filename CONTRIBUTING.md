@@ -35,6 +35,8 @@ as the expected result but with a `.html.returned` file name.
 test, it will render the result with a `.html.returned` file name. You can `mv` the file to the
 expected `.html` file to overwrite the existing empty one.
 
+  - Example: `mv testdata/mail/notify/single_app.html.returned testdata/mail/notify/single_app.html`
+
 ## Public domain
 
 This project is in the public domain within the United States, and
