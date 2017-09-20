@@ -25,6 +25,22 @@ func TestGetNotifyEmail(t *testing.T) {
 			}}, "application"},
 			filepath.Join(rootDataPath, "single_app.html"),
 		},
+		{
+			"multiple apps",
+			notifyEmail{"test@example.com", []cfclient.App{
+				{Name: "my-drupal-app",
+					SpaceData: cfclient.SpaceResource{Entity: cfclient.Space{Name: "dev",
+						OrgData: cfclient.OrgResource{Entity: cfclient.Org{Name: "sandbox"}},
+					}},
+				},
+				{Name: "my-wordpress-app",
+					SpaceData: cfclient.SpaceResource{Entity: cfclient.Space{Name: "staging",
+						OrgData: cfclient.OrgResource{Entity: cfclient.Org{Name: "paid-org"}},
+					}},
+				},
+			}, "applications"},
+			filepath.Join(rootDataPath, "multiple_apps.html"),
+		},
 	}
 	for _, tc := range testCases {
 		templates, err := initTemplates()
