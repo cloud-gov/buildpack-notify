@@ -1,0 +1,22 @@
+We recently made new security improvements to cloud.gov.
+
+To take advantage of them, please restage your applications immediately [1].
+
+To do so, open the command line and enter the following for each app: "cf restage YOURAPPNAME"
+
+Please run that command for the following applications:
+
+- my-drupal-app (Organization: sandbox, Space: dev)
+
+- my-wordpress-app (Organization: paid-org, Space: staging)
+
+Questions? Consult the documentation [2] or email us at cloud-gov-support@gsa.gov.
+
+Thank you,
+The cloud.gov team
+
+Need help [3]? We'd love to hear from you.
+
+[1] Please restage your applications immediately: https://cloud.gov/docs/getting-started/app-maintenance/#restaging-your-app
+[2] Consult the documentation: https://cloud.gov/docs/getting-started/app-maintenance/#restaging-your-app
+[3] Need help: https://cloud.gov/docs/help/

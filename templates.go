@@ -39,7 +39,7 @@ func initTemplates() (*Templates, error) {
 // given the basePath of where to look.
 func findTemplates() map[string][]string {
 	return map[string][]string{
-		notifyTemplate: []string{filepath.Join("templates", "mail", "notify.tmpl")},
+		notifyTemplate: []string{filepath.Join("templates", "mail", "notify.txt")},
 	}
 }
 

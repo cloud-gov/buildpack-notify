@@ -23,7 +23,7 @@ func TestGetNotifyEmail(t *testing.T) {
 					OrgData: cfclient.OrgResource{Entity: cfclient.Org{Name: "sandbox"}},
 				}},
 			}}, "application"},
-			filepath.Join(rootDataPath, "single_app.html"),
+			filepath.Join(rootDataPath, "single_app.txt"),
 		},
 		{
 			"multiple apps",
@@ -39,7 +39,7 @@ func TestGetNotifyEmail(t *testing.T) {
 					}},
 				},
 			}, "applications"},
-			filepath.Join(rootDataPath, "multiple_apps.html"),
+			filepath.Join(rootDataPath, "multiple_apps.txt"),
 		},
 	}
 	for _, tc := range testCases {
