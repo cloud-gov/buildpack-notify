@@ -3,6 +3,10 @@ resource_types:
   type: docker-image
   source:
     repository: governmentpaas/semver-resource
+- name: slack-notification
+  type: docker-image
+  source:
+    repository: cfcommunity/slack-notification-resource
 
 - name: pull-request
   type: docker-image
@@ -18,20 +22,32 @@ resources:
   source:
     uri: ((cg-buildpack-notify))
     branch: ((cg-buildpack-notify-branch))
+- name: cg-buildpack-notify-deploy-staging
+  type: cf
+  source:
+    api: ((cf-api-staging))
+    username: ((deployer-username-staging))
+    password: ((deployer-password-staging))
+    organization: ((cf-org-staging))
+    space: ((cf-space-staging))
 - name: cg-buildpack-notify-deploy-production
   type: cf
   source:
-    api: ((cf-api-prod))
-    username: ((deployer-username-prod))
-    password: ((deployer-password-prod))
-    organization: ((cf-org-prod))
-    space: ((cf-space-prod))
+    api: ((cf-api-production))
+    username: ((deployer-username-production))
+    password: ((deployer-password-production))
+    organization: ((cf-org-production))
+    space: ((cf-space-production))
 - name: pull-request
   type: pull-request
   source:
     repo: ((cg-buildpack-notify-github-repo-name))
     access_token: ((status-access-token))
     every: true
+- name: slack
+  type: slack-notification
+  source:
+    url: ((slack-webhook-url))
 
 jobs:
 - name: pull-status-check
@@ -63,17 +79,63 @@ jobs:
     trigger: true
   - task: run-tests
     file: notify-src/ci/run-tests.yml
-- name: push-cg-buildpack-notify-production
+- name: push-cg-buildpack-notify-staging
   plan:
   - aggregate:
     - get: notify-src
       passed: [test-cg-buildpack-notify]
       trigger: true
+  - put: cg-buildpack-notify-deploy-staging
+    params:
+      path: notify-src
+      manifest: notify-src/manifest.yml
+  on_failure:
+    put: slack
+    params:
+      text: |
+        :x: FAILED to deploy buildpack-notifier on ((cf-api-staging))
+        <$ATC_EXTERNAL_URL/teams/$BUILD_TEAM_NAME/pipelines/$BUILD_PIPELINE_NAME/jobs/$BUILD_JOB_NAME/builds/$BUILD_NAME|View build details>
+      channel: ((slack-channel))
+      username: ((slack-username))
+      icon_url: ((slack-icon-url))
+  on_success:
+    put: slack
+    params:
+      text: |
+        :white_check_mark: Successfully deployed buildpack-notifier on ((cf-api-staging))
+        <$ATC_EXTERNAL_URL/teams/$BUILD_TEAM_NAME/pipelines/$BUILD_PIPELINE_NAME/jobs/$BUILD_JOB_NAME/builds/$BUILD_NAME|View build details>
+      channel: ((slack-channel))
+      username: ((slack-username))
+      icon_url: ((slack-icon-url))
+- name: push-cg-buildpack-notify-production
+  plan:
+  - aggregate:
+    - get: notify-src
+      passed: [push-cg-buildpack-notify-staging]
+      trigger: true
   - put: cg-buildpack-notify-deploy-production
     params:
       path: notify-src
       manifest: notify-src/manifest.yml
-- name: notify-customers-prod
+  on_failure:
+    put: slack
+    params:
+      text: |
+        :x: FAILED to deploy buildpack-notifier on ((cf-api-production))
+        <$ATC_EXTERNAL_URL/teams/$BUILD_TEAM_NAME/pipelines/$BUILD_PIPELINE_NAME/jobs/$BUILD_JOB_NAME/builds/$BUILD_NAME|View build details>
+      channel: ((slack-channel))
+      username: ((slack-username))
+      icon_url: ((slack-icon-url))
+  on_success:
+    put: slack
+    params:
+      text: |
+        :white_check_mark: Successfully deployed buildpack-notifier on ((cf-api-production))
+        <$ATC_EXTERNAL_URL/teams/$BUILD_TEAM_NAME/pipelines/$BUILD_PIPELINE_NAME/jobs/$BUILD_JOB_NAME/builds/$BUILD_NAME|View build details>
+      channel: ((slack-channel))
+      username: ((slack-username))
+      icon_url: ((slack-icon-url))
+- name: notify-customers-staging
   plan:
   - get: check-buildpack-updates
     trigger: true
@@ -81,16 +143,42 @@ jobs:
   - task: do-notify
     file: notify-src/ci/notify.yml
     params:
-      SMTP_FROM: ((smtp-from))
-      SMTP_PORT: ((smtp-port))
-      SMTP_PASS: ((smtp-pass))
-      SMTP_USER: ((smtp-user))
-      SMTP_HOST: ((smtp-host))
-      CF_API: ((cf-api-prod))
-      CF_ORGANIZATION: ((cf-org-prod))
-      CF_SPACE: ((cf-space-prod))
-      CF_USERNAME: ((deployer-username-prod))
-      CF_PASSWORD: ((deployer-password-prod))
-      CLIENT_ID: ((client-id-prod))
-      CLIENT_SECRET: ((client-secret-prod))
-      ADDITIONAL_ARGS: ((additional-args))
+      CF_API: ((cf-api-staging))
+      CF_ORGANIZATION: ((cf-org-staging))
+      CF_SPACE: ((cf-space-staging))
+      CF_USERNAME: ((deployer-username-staging))
+      CF_PASSWORD: ((deployer-password-staging))
+      ADDITIONAL_ARGS: ((additional-args-staging))
+  on_failure:
+    put: slack
+    params:
+      text: |
+        :x: FAILED to notify customers with buildpack-notifier on ((cf-api-staging))
+        <$ATC_EXTERNAL_URL/teams/$BUILD_TEAM_NAME/pipelines/$BUILD_PIPELINE_NAME/jobs/$BUILD_JOB_NAME/builds/$BUILD_NAME|View build details>
+      channel: ((slack-channel))
+      username: ((slack-username))
+      icon_url: ((slack-icon-url))
+
+- name: notify-customers-production
+  plan:
+  - get: check-buildpack-updates
+    trigger: true
+  - get: notify-src
+  - task: do-notify
+    file: notify-src/ci/notify.yml
+    params:
+      CF_API: ((cf-api-production))
+      CF_ORGANIZATION: ((cf-org-production))
+      CF_SPACE: ((cf-space-production))
+      CF_USERNAME: ((deployer-username-production))
+      CF_PASSWORD: ((deployer-password-production))
+      ADDITIONAL_ARGS: ((additional-args-production))
+  on_failure:
+    put: slack
+    params:
+      text: |
+        :x: FAILED to notify customers with buildpack-notifier on ((cf-api-production))
+        <$ATC_EXTERNAL_URL/teams/$BUILD_TEAM_NAME/pipelines/$BUILD_PIPELINE_NAME/jobs/$BUILD_JOB_NAME/builds/$BUILD_NAME|View build details>
+      channel: ((slack-channel))
+      username: ((slack-username))
+      icon_url: ((slack-icon-url))
