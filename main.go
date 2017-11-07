@@ -214,8 +214,8 @@ type buildpackRecord struct {
 	LastUpdatedAt string
 }
 
-func filterForNewlyUpdatedBuildpacks(buildpacks []cfclient.BuildpackResource, store notifyStore) []cfclient.BuildpackResource {
-	filteredBuildpacks := []cfclient.BuildpackResource{}
+func filterForNewlyUpdatedBuildpacks(buildpacks []cfclient.Buildpack, store notifyStore) []cfclient.Buildpack {
+	filteredBuildpacks := []cfclient.Buildpack{}
 	storedBuildpacks := store.GetBuildpacks()
 	// Go through the passed in buildpacks
 	// Check if current buildpack.guid matches a guid in storeBuildpacks
@@ -227,15 +227,15 @@ func filterForNewlyUpdatedBuildpacks(buildpacks []cfclient.BuildpackResource, st
 	// for buildpacks return buildpack.guid in stored.
 
 	for _, buildpack := range buildpacks {
-		storedBuildpack, found := storedBuildpacks[buildpack.Meta.Guid]
+		storedBuildpack, found := storedBuildpacks[buildpack.Guid]
 		if !found {
 			filteredBuildpacks = append(filteredBuildpacks, buildpack)
-			store.SaveBuildpack(&buildpackRecord{Guid: buildpack.Meta.Guid, LastUpdatedAt: buildpack.Meta.UpdatedAt})
+			store.SaveBuildpack(&buildpackRecord{Guid: buildpack.Guid, LastUpdatedAt: buildpack.UpdatedAt})
 		} else {
-			buildpackUpdatedAt, err := time.Parse(time.RFC3339, buildpack.Meta.UpdatedAt)
+			buildpackUpdatedAt, err := time.Parse(time.RFC3339, buildpack.UpdatedAt)
 			if err != nil {
 				log.Fatalf("Unable to parse buildpack updatedAt time. Buildpack GUID %s Error %s",
-					buildpack.Meta.Guid, err)
+					buildpack.Guid, err)
 			}
 			storedBuildpackUpdatedAt, err := time.Parse(time.RFC3339, storedBuildpack.LastUpdatedAt)
 			if err != nil {
@@ -245,7 +245,7 @@ func filterForNewlyUpdatedBuildpacks(buildpacks []cfclient.BuildpackResource, st
 
 			if buildpackUpdatedAt.After(storedBuildpackUpdatedAt) {
 				filteredBuildpacks = append(filteredBuildpacks, buildpack)
-				storedBuildpack.LastUpdatedAt = buildpack.Meta.UpdatedAt
+				storedBuildpack.LastUpdatedAt = buildpack.UpdatedAt
 				store.SaveBuildpack(&storedBuildpack)
 			} else {
 				continue
@@ -257,13 +257,13 @@ func filterForNewlyUpdatedBuildpacks(buildpacks []cfclient.BuildpackResource, st
 	return filteredBuildpacks
 }
 
-func getAppsAndBuildpacks(client *cfclient.Client, store notifyStore) ([]cfclient.App, map[string]cfclient.BuildpackResource) {
+func getAppsAndBuildpacks(client *cfclient.Client, store notifyStore) ([]cfclient.App, map[string]cfclient.Buildpack) {
 	apps, err := client.ListApps()
 	if err != nil {
 		log.Fatalf("Unable to get apps. Error: %s", err.Error())
 	}
 	// Get all the buildpacks from our CF deployment via CF_API.
-	buildpackList, err := listBuildpacks(client)
+	buildpackList, err := client.ListBuildpacks()
 	if err != nil {
 		log.Fatalf("Unable to get buildpacks. Error: %s", err)
 	}
@@ -271,14 +271,14 @@ func getAppsAndBuildpacks(client *cfclient.Client, store notifyStore) ([]cfclien
 
 	// Create a map with the key being the buildpack name for quick comparison later on.
 	// Buildpack names are unique so that can be a key.
-	buildpacks := make(map[string]cfclient.BuildpackResource)
+	buildpacks := make(map[string]cfclient.Buildpack)
 	for _, buildpack := range filteredBuildpackList {
-		buildpacks[buildpack.Entity.Name] = buildpack
+		buildpacks[buildpack.Name] = buildpack
 	}
 	return apps, buildpacks
 }
 
-func isAppUsingSupportedBuildpack(app cfclient.App, buildpacks map[string]cfclient.BuildpackResource) (bool, *cfclient.BuildpackResource) {
+func isAppUsingSupportedBuildpack(app cfclient.App, buildpacks map[string]cfclient.Buildpack) (bool, *cfclient.Buildpack) {
 	if buildpack, found := buildpacks[app.Buildpack]; found && app.Buildpack != "" {
 		return true, &buildpack
 	}
@@ -290,33 +290,33 @@ func isAppUsingSupportedBuildpack(app cfclient.App, buildpacks map[string]cfclie
 	return false, nil
 }
 
-func isAppUsingOutdatedBuildpack(app cfclient.App, buildpack *cfclient.BuildpackResource) bool {
+func isAppUsingOutdatedBuildpack(app cfclient.App, buildpack *cfclient.Buildpack) bool {
 	// 2016-06-08T16:41:45Z
 	timeOfLastAppRestage, err := time.Parse(time.RFC3339, app.PackageUpdatedAt)
 	if err != nil {
 		log.Fatalf("Unable to parse last restage time. App %s App GUID %s Error %s",
 			app.Name, app.Guid, err)
 	}
-	timeOfLastBuildpackUpdate, err := time.Parse(time.RFC3339, buildpack.Meta.UpdatedAt)
+	timeOfLastBuildpackUpdate, err := time.Parse(time.RFC3339, buildpack.UpdatedAt)
 	if err != nil {
 		log.Fatalf("Unable to parse last buildpack update time. Buildpack %s Buildpack GUID %s Error %s",
-			buildpack.Entity.Name, buildpack.Meta.Guid, err)
+			buildpack.Name, buildpack.Guid, err)
 	}
 	return timeOfLastBuildpackUpdate.After(timeOfLastAppRestage)
 }
 
 type cfSpaceCache struct {
-	spaceUsers map[string]map[string]cfclient.User
+	spaceUsers map[string]map[string]cfclient.SpaceRole
 }
 
 func createCFSpaceCache() *cfSpaceCache {
 	return &cfSpaceCache{
-		spaceUsers: make(map[string]map[string]cfclient.User),
+		spaceUsers: make(map[string]map[string]cfclient.SpaceRole),
 	}
 }
 
-func filterForValidEmailUsernames(users []cfclient.User, app cfclient.App) []cfclient.User {
-	var filteredUsers []cfclient.User
+func filterForValidEmailUsernames(users []cfclient.SpaceRole, app cfclient.App) []cfclient.SpaceRole {
+	var filteredUsers []cfclient.SpaceRole
 	for _, user := range users {
 		if _, err := mail.ParseAddress(user.Username); err == nil {
 			filteredUsers = append(filteredUsers, user)
@@ -328,42 +328,45 @@ func filterForValidEmailUsernames(users []cfclient.User, app cfclient.App) []cfc
 	return filteredUsers
 }
 
-func (c *cfSpaceCache) getOwnersInAppSpace(app cfclient.App, client *cfclient.Client) map[string]cfclient.User {
+func (c *cfSpaceCache) getOwnersInAppSpace(app cfclient.App, client *cfclient.Client) map[string]cfclient.SpaceRole {
 	var ok bool
-	var usersWithSpaceRoles map[string]cfclient.User
-	if usersWithSpaceRoles, ok = c.spaceUsers[app.SpaceGuid]; ok {
-		return usersWithSpaceRoles
+	var ownersWithSpaceRoles map[string]cfclient.SpaceRole
+	if ownersWithSpaceRoles, ok = c.spaceUsers[app.SpaceGuid]; ok {
+		return ownersWithSpaceRoles
 	}
-	usersWithSpaceRoles = make(map[string]cfclient.User)
 	space, err := app.Space()
 	if err != nil {
 		log.Fatalf("Unable to get space of app %s. Error: %s", app.Name, err.Error())
 	}
-	spaceDevelopers, err := listUsersWithSpaceRole(client, space.Guid, SpaceDevelopers)
+	spaceRoles, err := space.Roles()
 	if err != nil {
-		log.Fatalf("Unable to get space developers of app %s. Error: %s", app.Name, err.Error())
+		log.Fatalf("Unable to get roles for all users in space %s. Error: %s", space.Name, err.Error())
 	}
-	filteredSpaceDevelopers := filterForValidEmailUsernames(spaceDevelopers, app)
-	spaceManagers, err := listUsersWithSpaceRole(client, space.Guid, SpaceManagers)
-	if err != nil {
-		log.Fatalf("Unable to get space manager of app %s. Error: %s", app.Name, err.Error())
-	}
-	filteredSpaceManagers := filterForValidEmailUsernames(spaceManagers, app)
+	spaceRoles = filterForValidEmailUsernames(spaceRoles, app)
+	ownersWithSpaceRoles = filterForUsersWithRoles(spaceRoles, getAppOwnerRoles())
 
-	for _, filteredUser := range filteredSpaceDevelopers {
-		if _, found := usersWithSpaceRoles[filteredUser.Guid]; !found {
-			usersWithSpaceRoles[filteredUser.Guid] = filteredUser
+	c.spaceUsers[app.SpaceGuid] = ownersWithSpaceRoles
+
+	return ownersWithSpaceRoles
+}
+
+// Returns a map of space roles we consider to be an owner.
+// We return a map for quick look-ups and comparisons.
+func getAppOwnerRoles() map[string]bool {
+	return map[string]bool{
+		"space_manager":   true,
+		"space_developer": true,
+	}
+}
+
+func filterForUsersWithRoles(spaceUsers []cfclient.SpaceRole, filteredRoles map[string]bool) map[string]cfclient.SpaceRole {
+	filteredSpaceUsers := make(map[string]cfclient.SpaceRole)
+	for _, spaceUser := range spaceUsers {
+		if spaceUserHasRoles(spaceUser, filteredRoles) {
+			filteredSpaceUsers[spaceUser.Guid] = spaceUser
 		}
 	}
-
-	for _, filteredUser := range filteredSpaceManagers {
-		if _, found := usersWithSpaceRoles[filteredUser.Guid]; !found {
-			usersWithSpaceRoles[filteredUser.Guid] = filteredUser
-		}
-	}
-	c.spaceUsers[app.SpaceGuid] = usersWithSpaceRoles
-
-	return usersWithSpaceRoles
+	return filteredSpaceUsers
 }
 
 func findOwnersOfApps(apps []cfclient.App, client *cfclient.Client) map[string][]cfclient.App {
@@ -380,7 +383,7 @@ func findOwnersOfApps(apps []cfclient.App, client *cfclient.Client) map[string][
 	return owners
 }
 
-func findOutdatedApps(apps []cfclient.App, buildpacks map[string]cfclient.BuildpackResource) (outdatedApps []cfclient.App) {
+func findOutdatedApps(apps []cfclient.App, buildpacks map[string]cfclient.Buildpack) (outdatedApps []cfclient.App) {
 	for _, app := range apps {
 		yes, buildpack := isAppUsingSupportedBuildpack(app, buildpacks)
 		if !yes {
@@ -398,12 +401,10 @@ func findOutdatedApps(apps []cfclient.App, buildpacks map[string]cfclient.Buildp
 	return
 }
 
-func spaceUserHasRoles(user cfclient.SpaceRole, roles ...string) bool {
+func spaceUserHasRoles(user cfclient.SpaceRole, roles map[string]bool) bool {
 	for _, roleOfUser := range user.SpaceRoles {
-		for _, role := range roles {
-			if role == roleOfUser {
-				return true
-			}
+		if found, _ := roles[roleOfUser]; found {
+			return true
 		}
 	}
 	return false
