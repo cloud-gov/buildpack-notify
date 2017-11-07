@@ -2,7 +2,18 @@
 
 Toward proactively encouraging cloud.gov customers to restage their apps so they can benefit from buildpack updates.
 
-## Deploying
+## Deploying With Concourse
+
+Prior to deploying with Concourse, you need to setup services and get the credentials.
+
+### Database Setup
+
+Create a PostgreSQL database: `cf cs aws-rds shared-psql buildpack-notify-db`
+
+### Service Deployer Account
+
+Follow the instructions in our [docs](https://cloud.gov/docs/services/cloud-gov-service-account/) to
+get credentials for a deployer service named `buildpack-notify-deployer`.
 
 ### User Provided Services
 
@@ -10,11 +21,13 @@ You need to copy the `*.example.json` credential files into `*.json` files.
 Fill them out then run the following commands:
 
 ```sh
-cf cups notify-email-creds -l cf/notify_email_creds.json
-cf cups notify-cf-creds -l cf/notify_cf_creds.json
+cf cups notify-email-creds -p cf/notify_email_creds.json
+cf cups notify-cf-creds -p cf/notify_cf_creds.json
 ```
 
-## Running `cf run-task`
+## Running `cf run-task` locally
+
+Note: You don't need to do this because Concourse will do this for you once the pipeline is set.
 
 After the service is deployed, run:
 
