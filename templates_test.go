@@ -22,7 +22,7 @@ func TestGetNotifyEmail(t *testing.T) {
 				SpaceData: cfclient.SpaceResource{Entity: cfclient.Space{Name: "dev",
 					OrgData: cfclient.OrgResource{Entity: cfclient.Org{Name: "sandbox"}},
 				}},
-			}}, "application"},
+			}}, false},
 			filepath.Join(rootDataPath, "single_app.txt"),
 		},
 		{
@@ -38,7 +38,7 @@ func TestGetNotifyEmail(t *testing.T) {
 						OrgData: cfclient.OrgResource{Entity: cfclient.Org{Name: "paid-org"}},
 					}},
 				},
-			}, "applications"},
+			}, true},
 			filepath.Join(rootDataPath, "multiple_apps.txt"),
 		},
 	}
