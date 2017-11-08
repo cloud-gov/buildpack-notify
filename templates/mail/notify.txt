@@ -10,7 +10,6 @@ The following {{.AppNoun}} have updated buildpacks available:
 {{range .Apps}}
 - {{.Name}} (Organization: {{ .SpaceData.Entity.OrgData.Entity.Name }}, Space: {{ .SpaceData.Entity.Name }})
 {{end}}
-
 If you have questions, email us at cloud-gov-support@gsa.gov.
 
 Thank you,
