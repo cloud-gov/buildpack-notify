@@ -6,7 +6,6 @@ import:
   subpackages:
   - mock
 - package: github.com/cloudfoundry-community/go-cfenv
-  version: ^1.17.0
 - package: github.com/jinzhu/gorm
   subpackages:
   - dialects/postgres
