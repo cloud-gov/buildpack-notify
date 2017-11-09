@@ -414,15 +414,19 @@ func sendNotifyEmailToUsers(users map[string][]cfclient.App, templates *Template
 		// Create buffer
 		body := new(bytes.Buffer)
 		// Determine whether the user has one application or more than one.
-		appNoun := "application"
+		isMultipleApp := false
 		if len(apps) > 1 {
-			appNoun = "applications"
+			isMultipleApp = true
 		}
 		// Fill buffer with completed e-mail
-		templates.getNotifyEmail(body, notifyEmail{user, apps, appNoun})
+		templates.getNotifyEmail(body, notifyEmail{user, apps, isMultipleApp})
 		// Send email
 		if !dryRun {
-			err := mailer.SendEmail(user, fmt.Sprintf("Action required: restage your %s", appNoun), body.Bytes())
+			subj := "Action required: restage your application"
+			if isMultipleApp {
+				subj += "s"
+			}
+			err := mailer.SendEmail(user, fmt.Sprint(subj), body.Bytes())
 			if err != nil {
 				log.Printf("Unable to send e-mail to %s\n", user)
 				continue

@@ -22,7 +22,7 @@ func TestGetNotifyEmail(t *testing.T) {
 				SpaceData: cfclient.SpaceResource{Entity: cfclient.Space{Name: "dev",
 					OrgData: cfclient.OrgResource{Entity: cfclient.Org{Name: "sandbox"}},
 				}},
-			}}, "application"},
+			}}, false},
 			filepath.Join(rootDataPath, "single_app.txt"),
 		},
 		{
@@ -38,7 +38,7 @@ func TestGetNotifyEmail(t *testing.T) {
 						OrgData: cfclient.OrgResource{Entity: cfclient.Org{Name: "paid-org"}},
 					}},
 				},
-			}, "applications"},
+			}, true},
 			filepath.Join(rootDataPath, "multiple_apps.txt"),
 		},
 	}
@@ -58,8 +58,10 @@ func TestGetNotifyEmail(t *testing.T) {
 				t.Fatalf("Unable to read expected file. %s", err.Error())
 			}
 			if string(expectedBody) != string(body.Bytes()) {
+				t.Logf("\n===========Expected %s e-mail case BEGIN===========\n%s\n===========Expected %s e-mail case END===========\n", tc.name, string(expectedBody), tc.name)
+				t.Logf("\n===========Actual %s e-mail case BEGIN===========\n%s\n===========Actual %s e-mail case END===========\n", tc.name, string(body.Bytes()), tc.name)
 				t.Errorf("Test %s failed. For the actual output, inspect %s.returned.", tc.name, filepath.Base(tc.expectedEmail))
-				ioutil.WriteFile(filepath.Join(rootDataPath, filepath.Base(tc.expectedEmail)+".returned"), body.Bytes(), 0444)
+				ioutil.WriteFile(filepath.Join(rootDataPath, filepath.Base(tc.expectedEmail)+".returned"), body.Bytes(), 0644)
 			}
 		})
 	}

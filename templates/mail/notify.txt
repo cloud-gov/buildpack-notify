@@ -1,20 +1,22 @@
-We recently made new security improvements to cloud.gov.
+Hi cloud.gov user,
 
-To take advantage of them, please restage your {{.AppNoun}} immediately [1].
+cloud.gov frequently updates the programming language buildpacks available to our customers, and we recently updated 
+{{- if .IsMultipleApp}} the buildpacks that your applications use. {{else}} the buildpack that your application uses. {{end -}}
+Buildpack updates include programming language updates and often include security fixes.
 
-To do so, open the command line and enter the following for each app: "cf restage YOURAPPNAME"
+To take advantage of buildpack updates, you should restage your application{{if .IsMultipleApp}}s{{end}}. Documentation for this process: https://cloud.gov/docs/getting-started/app-maintenance/
 
-Please run that command for the following {{.AppNoun}}:
+You can restage apps by opening the command line and entering the following command: cf restage YOURAPPNAME
+{{if .IsMultipleApp}}
+The following applications have updated buildpacks available:
+{{else}}
+The following application has an updated buildpack available:
+{{end -}}
+
 {{range .Apps}}
 - {{.Name}} (Organization: {{ .SpaceData.Entity.OrgData.Entity.Name }}, Space: {{ .SpaceData.Entity.Name }})
 {{end}}
-Questions? Consult the documentation [2] or email us at cloud-gov-support@gsa.gov.
+If you have questions, email us at cloud-gov-support@gsa.gov.
 
 Thank you,
 The cloud.gov team
-
-Need help [3]? We'd love to hear from you.
-
-[1] Please restage your {{.AppNoun}} immediately: https://cloud.gov/docs/getting-started/app-maintenance/#restaging-your-app
-[2] Consult the documentation: https://cloud.gov/docs/getting-started/app-maintenance/#restaging-your-app
-[3] Need help: https://cloud.gov/docs/help/
