@@ -34,7 +34,7 @@ func (s *smtpMailer) SendEmail(emailAddress, subject string, body []byte) error 
 	e := email.NewEmail()
 	e.From = "cloud.gov <" + s.smtpFrom + ">"
 	e.To = []string{" <" + emailAddress + ">"}
-	e.HTML = body
+	e.Text = body
 	e.Subject = subject
 	return e.Send(s.smtpHost+":"+s.smtpPort, smtp.PlainAuth("", s.smtpUser, s.smtpPass, s.smtpHost))
 }

@@ -39,7 +39,7 @@ func initTemplates() (*Templates, error) {
 // given the basePath of where to look.
 func findTemplates() map[string][]string {
 	return map[string][]string{
-		notifyTemplate: []string{filepath.Join("templates", "mail", "notify.tmpl")},
+		notifyTemplate: []string{filepath.Join("templates", "mail", "notify.txt")},
 	}
 }
 
@@ -52,9 +52,9 @@ func (t *Templates) getTemplate(templateKey string) (*template.Template, error) 
 
 // notifyEmail provides struct for the templates/mail/notify.tmpl
 type notifyEmail struct {
-	Username string
-	Apps     []cfclient.App
-	AppNoun  string
+	Username      string
+	Apps          []cfclient.App
+	IsMultipleApp bool
 }
 
 // getNotifyEmail gets the filled in notify email template.
