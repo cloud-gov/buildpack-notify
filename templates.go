@@ -52,9 +52,9 @@ func (t *Templates) getTemplate(templateKey string) (*template.Template, error) 
 
 // notifyEmail provides struct for the templates/mail/notify.tmpl
 type notifyEmail struct {
-	Username  string
-	Apps      []cfclient.App
-	AppPlural bool
+	Username      string
+	Apps          []cfclient.App
+	IsMultipleApp bool
 }
 
 // getNotifyEmail gets the filled in notify email template.

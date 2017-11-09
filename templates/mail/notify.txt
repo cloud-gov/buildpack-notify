@@ -1,13 +1,13 @@
 Hi cloud.gov user,
 
 cloud.gov frequently updates the programming language buildpacks available to our customers, and we recently updated 
-{{- if .AppPlural}} the buildpacks that your applications use. {{else}} the buildpack that your application uses. {{end -}}
+{{- if .IsMultipleApp}} the buildpacks that your applications use. {{else}} the buildpack that your application uses. {{end -}}
 Buildpack updates include programming language updates and often include security fixes.
 
-To take advantage of buildpack updates, you should restage your application{{if .AppPlural}}s{{end}}. Documentation for this process: https://cloud.gov/docs/getting-started/app-maintenance/
+To take advantage of buildpack updates, you should restage your application{{if .IsMultipleApp}}s{{end}}. Documentation for this process: https://cloud.gov/docs/getting-started/app-maintenance/
 
 You can restage apps by opening the command line and entering the following command: cf restage YOURAPPNAME
-{{if .AppPlural}}
+{{if .IsMultipleApp}}
 The following applications have updated buildpacks available:
 {{else}}
 The following application has an updated buildpack available:
