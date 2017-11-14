@@ -1,0 +1,2 @@
+package: github.com/18F/cg-buildpack-notify/integration/apps/go
+import: []
