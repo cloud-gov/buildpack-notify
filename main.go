@@ -7,6 +7,7 @@ import (
 	"log"
 	"net/http"
 	"net/mail"
+	"net/url"
 	"os"
 	"time"
 
@@ -40,7 +41,7 @@ type cfConfig struct {
 }
 
 type dbConfig struct {
-	databaseUrl string
+	databaseURL string
 }
 
 type notifyStore interface {
@@ -94,12 +95,12 @@ func (s *dbNotifyStore) SaveBuildpack(buildpack *buildpackRecord) {
 }
 
 func dbConnect(dbConfig dbConfig) (*gorm.DB, error) {
-	return gorm.Open("postgres", dbConfig.databaseUrl)
+	return gorm.Open("postgres", dbConfig.databaseURL)
 }
 
 func getDBConfig() dbConfig {
 	return dbConfig{
-		databaseUrl: os.Getenv("DATABASE_URL"),
+		databaseURL: os.Getenv("DATABASE_URL"),
 	}
 }
 
@@ -195,8 +196,9 @@ func main() {
 		log.Println("Calculating notifications to send for outdated buildpacks.")
 		mailer := InitSMTPMailer(config)
 		apps, buildpacks := getAppsAndBuildpacks(client, store)
-		outdatedApps := findOutdatedApps(apps, buildpacks)
-		owners := findOwnersOfApps(outdatedApps, client)
+		outdatedApps := findOutdatedApps(client, apps, buildpacks)
+		outdatedV2Apps := convertToV2Apps(client, outdatedApps)
+		owners := findOwnersOfApps(outdatedV2Apps, client)
 		log.Printf("Will notify %d owners of outdated apps.\n", len(owners))
 		sendNotifyEmailToUsers(owners, templates, mailer, *dryRun)
 	} else {
@@ -212,6 +214,20 @@ type buildpackRecord struct {
 	gorm.Model
 	Guid          string
 	LastUpdatedAt string
+}
+
+// convertToV2Apps will take a V3 App object and convert it to a V2 App object.
+// This is useful because the V2 App object has more space information at the moment.
+func convertToV2Apps(client *cfclient.Client, apps []App) []cfclient.App {
+	v2Apps := []cfclient.App{}
+	for _, app := range apps {
+		v2App, err := client.GetAppByGuid(app.GUID)
+		if err != nil {
+			log.Fatalf("Unable to convert v3 app to v2 app. App Guid %s", app.GUID)
+		}
+		v2Apps = append(v2Apps, v2App)
+	}
+	return v2Apps
 }
 
 func filterForNewlyUpdatedBuildpacks(buildpacks []cfclient.Buildpack, store notifyStore) []cfclient.Buildpack {
@@ -248,6 +264,7 @@ func filterForNewlyUpdatedBuildpacks(buildpacks []cfclient.Buildpack, store noti
 				storedBuildpack.LastUpdatedAt = buildpack.UpdatedAt
 				store.SaveBuildpack(&storedBuildpack)
 			} else {
+				log.Printf("Supported Buildpack %s has not been updated\n", buildpack.Name)
 				continue
 			}
 		}
@@ -257,8 +274,8 @@ func filterForNewlyUpdatedBuildpacks(buildpacks []cfclient.Buildpack, store noti
 	return filteredBuildpacks
 }
 
-func getAppsAndBuildpacks(client *cfclient.Client, store notifyStore) ([]cfclient.App, map[string]cfclient.Buildpack) {
-	apps, err := client.ListApps()
+func getAppsAndBuildpacks(client *cfclient.Client, store notifyStore) ([]App, map[string]cfclient.Buildpack) {
+	apps, err := ListApps(client)
 	if err != nil {
 		log.Fatalf("Unable to get apps. Error: %s", err.Error())
 	}
@@ -270,7 +287,6 @@ func getAppsAndBuildpacks(client *cfclient.Client, store notifyStore) ([]cfclien
 	filteredBuildpackList := filterForNewlyUpdatedBuildpacks(buildpackList, store)
 
 	// Create a map with the key being the buildpack name for quick comparison later on.
-	// Buildpack names are unique so that can be a key.
 	buildpacks := make(map[string]cfclient.Buildpack)
 	for _, buildpack := range filteredBuildpackList {
 		buildpacks[buildpack.Name] = buildpack
@@ -278,24 +294,25 @@ func getAppsAndBuildpacks(client *cfclient.Client, store notifyStore) ([]cfclien
 	return apps, buildpacks
 }
 
-func isAppUsingSupportedBuildpack(app cfclient.App, buildpacks map[string]cfclient.Buildpack) (bool, *cfclient.Buildpack) {
-	if buildpack, found := buildpacks[app.Buildpack]; found && app.Buildpack != "" {
-		return true, &buildpack
-	}
-	// Check the "detected_buildpack" JSON field because that's what the CF API populates (instead of
-	// "buildpack") if the app doesn't specify a buildpack in its manifest.
-	if buildpack, found := buildpacks[app.DetectedBuildpack]; found && app.DetectedBuildpack != "" {
-		return true, &buildpack
+// isDropletUsingSupportedBuildpack checks the buildpacks the droplet is using and comparing to see if one of them
+// is a provided system buildpack.
+func isDropletUsingSupportedBuildpack(droplet Droplet, buildpacks map[string]cfclient.Buildpack) (bool, *cfclient.Buildpack) {
+	for _, dropletBuildpack := range droplet.Buildpacks {
+		if buildpack, found := buildpacks[dropletBuildpack.Name]; found && dropletBuildpack.Name != "" {
+			return true, &buildpack
+		}
 	}
 	return false, nil
 }
 
-func isAppUsingOutdatedBuildpack(app cfclient.App, buildpack *cfclient.Buildpack) bool {
-	// 2016-06-08T16:41:45Z
-	timeOfLastAppRestage, err := time.Parse(time.RFC3339, app.PackageUpdatedAt)
+// isDropletUsingOutdatedBuildpack checks if the droplet was created before the last time the buildpack was updated.
+// This comparison is the heart of checking whether the app needs an update.
+// Format of time stamp: 2016-06-08T16:41:45Z
+func isDropletUsingOutdatedBuildpack(client *cfclient.Client, droplet Droplet, buildpack *cfclient.Buildpack) bool {
+	timeOfLastAppRestage, err := time.Parse(time.RFC3339, droplet.CreatedAt)
 	if err != nil {
-		log.Fatalf("Unable to parse last restage time. App %s App GUID %s Error %s",
-			app.Name, app.Guid, err)
+		log.Fatalf("Unable to parse last restage time. Droplet GUID %s Error %s",
+			droplet.GUID, err)
 	}
 	timeOfLastBuildpackUpdate, err := time.Parse(time.RFC3339, buildpack.UpdatedAt)
 	if err != nil {
@@ -383,17 +400,44 @@ func findOwnersOfApps(apps []cfclient.App, client *cfclient.Client) map[string][
 	return owners
 }
 
-func findOutdatedApps(apps []cfclient.App, buildpacks map[string]cfclient.Buildpack) (outdatedApps []cfclient.App) {
+// getCurrentDropletForApp will try to query the current droplet.
+// A running app will have 1 droplet associated with it.
+// If it doesn't have 1, it's not running. There should be no case when it's more
+// than 1 but if so, we need to do further investigation to handle it.
+func getCurrentDropletForApp(app App, client *cfclient.Client) (Droplet, bool) {
+	droplets, err := app.GetDropletsByQuery(client, url.Values{"current": []string{"true"}})
+	if err != nil {
+		log.Fatalf("Unable to get droplet for app. App %s App GUID %s Error %s",
+			app.Name, app.GUID, err)
+	}
+	var droplet Droplet
+	if len(droplets) != 1 {
+		// We should only have 1.
+		return Droplet{}, false
+	}
+	droplet = droplets[0]
+	return droplet, true
+}
+
+func findOutdatedApps(client *cfclient.Client, apps []App, buildpacks map[string]cfclient.Buildpack) (outdatedApps []App) {
 	for _, app := range apps {
-		yes, buildpack := isAppUsingSupportedBuildpack(app, buildpacks)
-		if !yes {
+		if app.State != "STARTED" {
+			log.Printf("App %s guid %s not in STARTED state\n", app.Name, app.GUID)
 			continue
 		}
-		if app.State != "STARTED" {
+		droplet, foundDroplet := getCurrentDropletForApp(app, client)
+		if !foundDroplet {
+			log.Printf("Unable to find current droplet for app %s guid %s. Safely skipping.\n", app.Name, app.GUID)
+			continue
+		}
+		yes, buildpack := isDropletUsingSupportedBuildpack(droplet, buildpacks)
+		if !yes {
+			log.Printf("App %s guid %s not using supported buildpack\n", app.Name, app.GUID)
 			continue
 		}
 		// If the app is using a supported buildpack, check if app is using an outdated buildpack.
-		if appIsOutdated := isAppUsingOutdatedBuildpack(app, buildpack); !appIsOutdated {
+		if appIsOutdated := isDropletUsingOutdatedBuildpack(client, droplet, buildpack); !appIsOutdated {
+			log.Printf("App %s Guid %s | Buildpack %s not outdated\n", app.Name, app.GUID, buildpack.Name)
 			continue
 		}
 		outdatedApps = append(outdatedApps, app)
