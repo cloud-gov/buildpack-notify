@@ -14,7 +14,7 @@ by opening the command line and entering the following command:
 {{end -}}
 
 {{range .Apps}}
-- cf target -o {{ .SpaceData.Entity.OrgData.Entity.Name }} -s {{ .SpaceData.Entity.Name }} ; cf restage {{.Name}}
+  cf target -o {{ .SpaceData.Entity.OrgData.Entity.Name }} -s {{ .SpaceData.Entity.Name }} ; cf restage {{.Name}}
 {{end}}
 
 For more information on keeping your application updated and secure, see: 

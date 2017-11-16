@@ -8,7 +8,7 @@ We recently updated the buildpack in use by your application. To take
 advantage of the update, you should restage your application. You can do this 
 by opening the command line and entering the following command:
 
-- cf target -o sandbox -s dev ; cf restage my-drupal-app
+  cf target -o sandbox -s dev ; cf restage my-drupal-app
 
 
 For more information on keeping your application updated and secure, see: 
