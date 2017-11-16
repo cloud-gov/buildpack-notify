@@ -1,18 +1,22 @@
 Hi cloud.gov user,
 
-cloud.gov frequently updates the programming language buildpacks available to our customers, and we recently updated the buildpacks that your applications use. Buildpack updates include programming language updates and often include security fixes.
+cloud.gov frequently updates the programming language buildpacks available to
+our customers. Buildpack updates include programming language updates and 
+often include security fixes.
 
-To take advantage of buildpack updates, you should restage your applications. Documentation for this process: https://cloud.gov/docs/getting-started/app-maintenance/
+We recently updated buildpacks in use by your applications. To take advantage
+of the update, you should restage your applications. You can do this by
+opening the command line and entering the following commands:
 
-You can restage apps by opening the command line and entering the following command: cf restage YOURAPPNAME
+- cf target -o sandbox -s dev ; cf restage my-drupal-app
 
-The following applications have updated buildpacks available:
+- cf target -o paid-org -s staging ; cf restage my-wordpress-app
 
-- my-drupal-app (Organization: sandbox, Space: dev)
 
-- my-wordpress-app (Organization: paid-org, Space: staging)
+For more information on keeping your application updated and secure, see: 
+https://cloud.gov/docs/getting-started/app-maintenance/
 
-If you have questions, email us at cloud-gov-support@gsa.gov.
+If you have questions, you can email us at cloud-gov-support@gsa.gov.
 
 Thank you,
 The cloud.gov team
