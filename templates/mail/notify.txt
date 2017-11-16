@@ -4,18 +4,21 @@ cloud.gov frequently updates the programming language buildpacks available to ou
 {{- if .IsMultipleApp}} the buildpacks that your applications use. {{else}} the buildpack that your application uses. {{end -}}
 Buildpack updates include programming language updates and often include security fixes.
 
-To take advantage of buildpack updates, you should restage your application{{if .IsMultipleApp}}s{{end}}. Documentation for this process: https://cloud.gov/docs/getting-started/app-maintenance/
+To take advantage of buildpack updates, you should restage your application{{if .IsMultipleApp}}s{{end}}.
 
-You can restage apps by opening the command line and entering the following command: cf restage YOURAPPNAME
 {{if .IsMultipleApp}}
-The following applications have updated buildpacks available:
+You can restage your out-of-date apps by opening the command line and entering the following commands:
 {{else}}
-The following application has an updated buildpack available:
+You can restage your out-of-date app by opening the command line and entering the following command:
 {{end -}}
 
 {{range .Apps}}
-- {{.Name}} (Organization: {{ .SpaceData.Entity.OrgData.Entity.Name }}, Space: {{ .SpaceData.Entity.Name }})
+- cf target -o {{ .SpaceData.Entity.OrgData.Entity.Name }} -s {{ .SpaceData.Entity.Name }} ; cf restage {{.Name}} 
 {{end}}
+
+For more information about ensuring your app stays updated and secure, see our documentation: 
+https://cloud.gov/docs/getting-started/app-maintenance/
+
 If you have questions, email us at cloud-gov-support@gsa.gov.
 
 Thank you,
