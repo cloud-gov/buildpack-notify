@@ -4,8 +4,8 @@ cloud.gov frequently updates the programming language buildpacks available to
 our customers. Buildpack updates include programming language updates and 
 often include security fixes.
 
-We recently updated buildpacks in use by your applications. To take advantage
-of the update, you should restage your applications. You can do this by
+We recently updated buildpacks in use by your applications. You should 
+restage your applications to take advantage of the update. You can do this by
 opening the command line and entering the following commands:
 
   cf target -o sandbox -s dev ; cf restage my-drupal-app
