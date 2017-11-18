@@ -8,9 +8,9 @@ We recently updated buildpacks in use by your applications. You should
 restage your applications to take advantage of the update. You can do this by
 opening the command line and entering the following commands:
 {{else}}
-We recently updated the buildpack in use by your application. To take 
-advantage of the update, you should restage your application. You can do this 
-by opening the command line and entering the following command:
+We recently updated the buildpack in use by your application. You should 
+restage your application to take advantage of the update. You can do this by
+opening the command line and entering the following command:
 {{end -}}
 
 {{range .Apps}}
