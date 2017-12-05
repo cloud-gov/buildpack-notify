@@ -30,28 +30,18 @@ This service requires a PostgreSQL database. The service name should be `buildpa
 and should be in the same space that you will deploy the application.
 
 For example, if using the [aws-broker](https://github.com/18F/aws-broker),
-run:  `cf cs aws-rds shared-psql buildpack-notify-db`
+run: `cf cs aws-rds shared-psql buildpack-notify-db`
 
-#### User Provided Services
+#### Credentials
 
-You need to copy the `*.example.json` credential files into `*.json` files.
-More information about them below. Afterwards, fill them out then run the following commands:
-
-```sh
-cf cups notify-email-creds -p cf/notify_email_creds.json
-cf cups notify-cf-creds -p cf/notify_cf_creds.json
-```
-
-`notify-email-creds` contains credentials to send e-mails.
-
+Email:
 - `SMTP_FROM`: The email-address that will be in the From field in the e-mail. e.g. `test@example.com` or `Me <test@example.com>`
 - `SMTP_HOST`: The SMTP host to authenticate with. e.g. `smtp.host.com`
 - `SMTP_PASS`: The password to authenticate with. e.g. `somepassword`
 - `SMTP_PORT`: The SMTP port to connect to. e.g. `587`
 - `SMTP_USER`: The username to authenticate with. e.g. `someuser@example.com`
 
-`notify-cf-creds` contains Cloud Foundry Client credentials.
-
+CF API:
 - `CF_API`: "https://api.local.pcfdev.io",
 - `CLIENT_ID`: "client-id-here",
 - `CLIENT_SECRET`: "client-secret-here"

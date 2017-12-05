@@ -16,32 +16,27 @@ import (
 	_ "github.com/lib/pq"
 
 	cfclient "github.com/cloudfoundry-community/go-cfclient"
-	cfenv "github.com/cloudfoundry-community/go-cfenv"
+	"github.com/kelseyhightower/envconfig"
 )
 
 // TODO: handle errors centrally.
 
-const (
-	cfUPSCreds    = "notify-cf-creds"
-	emailUPSCreds = "notify-email-creds"
-)
-
-type emailConfig struct {
-	from     string
-	host     string
-	password string
-	port     string
-	user     string
+type EmailConfig struct {
+	From     string `envconfig:"smtp_from" required:"true"`
+	Host     string `envconfig:"smtp_host" required:"true"`
+	Password string `envconfig:"smtp_password" required:"true"`
+	Port     string `envconfig:"smtp_port" required:"true"`
+	User     string `envconfig:"smtp_user" required:"true"`
 }
 
-type cfConfig struct {
-	api          string
-	clientID     string
-	clientSecret string
+type CFAPIConfig struct {
+	API          string `envconfig:"cf_api" required:"true"`
+	ClientID     string `envconfig:"client_id" required:"true"`
+	ClientSecret string `envconfig:"client_secret" required:"true"`
 }
 
-type dbConfig struct {
-	databaseURL string
+type DBConfig struct {
+	DatabaseURL string `envconfig:"database_url" required:"true"`
 }
 
 type notifyStore interface {
@@ -94,78 +89,27 @@ func (s *dbNotifyStore) SaveBuildpack(buildpack *buildpackRecord) {
 
 }
 
-func dbConnect(dbConfig dbConfig) (*gorm.DB, error) {
-	return gorm.Open("postgres", dbConfig.databaseURL)
-}
-
-func getDBConfig() dbConfig {
-	return dbConfig{
-		databaseURL: os.Getenv("DATABASE_URL"),
-	}
-}
-
-func getCFConfig(cfEnv *cfenv.App) cfConfig {
-	config := cfConfig{
-		api:          os.Getenv("CF_API"),
-		clientID:     os.Getenv("CLIENT_ID"),
-		clientSecret: os.Getenv("CLIENT_SECRET"),
-	}
-	if cfEnv != nil {
-		if service, err := cfEnv.Services.WithName(cfUPSCreds); err == nil {
-			log.Println("Using UPS for CF creds")
-			if api, found := service.Credentials["CF_API"]; found {
-				config.api = api.(string)
-			}
-			if clientID, found := service.Credentials["CLIENT_ID"]; found {
-				config.clientID = clientID.(string)
-			}
-			if clientSecret, found := service.Credentials["CLIENT_SECRET"]; found {
-				config.clientSecret = clientSecret.(string)
-			}
-		}
-	}
-	return config
-}
-
-func getEmailConfig(cfEnv *cfenv.App) emailConfig {
-	config := emailConfig{
-		from:     os.Getenv("SMTP_FROM"),
-		host:     os.Getenv("SMTP_HOST"),
-		password: os.Getenv("SMTP_PASS"),
-		port:     os.Getenv("SMTP_PORT"),
-		user:     os.Getenv("SMTP_USER"),
-	}
-	if cfEnv != nil {
-		if service, err := cfEnv.Services.WithName(emailUPSCreds); err == nil {
-			log.Println("Using UPS for email creds")
-			if smtpFrom, found := service.Credentials["SMTP_FROM"]; found {
-				config.from = smtpFrom.(string)
-			}
-			if smtpHost, found := service.Credentials["SMTP_HOST"]; found {
-				config.host = smtpHost.(string)
-			}
-			if smtpPass, found := service.Credentials["SMTP_PASS"]; found {
-				config.password = smtpPass.(string)
-			}
-			if smtpPort, found := service.Credentials["SMTP_PORT"]; found {
-				config.port = smtpPort.(string)
-			}
-			if smtpUser, found := service.Credentials["SMTP_USER"]; found {
-				config.user = smtpUser.(string)
-			}
-		}
-	}
-	return config
+func dbConnect(dbConfig DBConfig) (*gorm.DB, error) {
+	return gorm.Open("postgres", dbConfig.DatabaseURL)
 }
 
 func main() {
-	cfEnv, err := cfenv.Current()
-	if err != nil {
-		log.Println("Could not find cf env")
+	var (
+		emailConfig EmailConfig
+		cfAPIConfig CFAPIConfig
+		dbConfig    DBConfig
+	)
+
+	if err := envconfig.Process("", &emailConfig); err != nil {
+		log.Fatalf("Unable to parse email config: %s", err.Error())
 	}
-	config := getEmailConfig(cfEnv)
-	dbConfig := getDBConfig()
-	cfAPIConfig := getCFConfig(cfEnv)
+	if err := envconfig.Process("", &cfAPIConfig); err != nil {
+		log.Fatalf("Unable to parse cf api config: %s", err.Error())
+	}
+	if err := envconfig.Process("", &dbConfig); err != nil {
+		log.Fatalf("Unable to parse db config: %s", err.Error())
+	}
+
 	db, err := dbConnect(dbConfig)
 	if err != nil {
 		log.Fatalf("Unable to connect to database. Error: %s", err.Error())
@@ -175,9 +119,9 @@ func main() {
 		log.Fatalf("Unable to initialize templates. Error: %s", err.Error())
 	}
 	client, err := cfclient.NewClient(&cfclient.Config{
-		ApiAddress:        cfAPIConfig.api,
-		ClientID:          cfAPIConfig.clientID,
-		ClientSecret:      cfAPIConfig.clientSecret,
+		ApiAddress:        cfAPIConfig.API,
+		ClientID:          cfAPIConfig.ClientID,
+		ClientSecret:      cfAPIConfig.ClientSecret,
 		SkipSslValidation: os.Getenv("INSECURE") == "1",
 		HttpClient:        &http.Client{Timeout: 30 * time.Second},
 	})
@@ -194,7 +138,7 @@ func main() {
 	}
 	if *notify {
 		log.Println("Calculating notifications to send for outdated buildpacks.")
-		mailer := InitSMTPMailer(config)
+		mailer := InitSMTPMailer(emailConfig)
 		apps, buildpacks := getAppsAndBuildpacks(client, store)
 		outdatedApps := findOutdatedApps(client, apps, buildpacks)
 		outdatedV2Apps := convertToV2Apps(client, outdatedApps)
