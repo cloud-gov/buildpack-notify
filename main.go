@@ -410,7 +410,6 @@ func getCurrentDropletForApp(app App, client *cfclient.Client) (Droplet, bool) {
 		// Log and continue if droplet not found
 		log.Printf("Unable to get droplet for app. App %s App GUID %s Error %s",
 			app.Name, app.GUID, err)
-		return Droplet{}, false
 	}
 	if len(droplets) != 1 {
 		// We should only have 1.
