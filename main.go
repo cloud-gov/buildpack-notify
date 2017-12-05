@@ -407,16 +407,16 @@ func findOwnersOfApps(apps []cfclient.App, client *cfclient.Client) map[string][
 func getCurrentDropletForApp(app App, client *cfclient.Client) (Droplet, bool) {
 	droplets, err := app.GetDropletsByQuery(client, url.Values{"current": []string{"true"}})
 	if err != nil {
-		log.Fatalf("Unable to get droplet for app. App %s App GUID %s Error %s",
+		// Log and continue if droplet not found
+		log.Printf("Unable to get droplet for app. App %s App GUID %s Error %s",
 			app.Name, app.GUID, err)
+		return Droplet{}, false
 	}
-	var droplet Droplet
 	if len(droplets) != 1 {
 		// We should only have 1.
 		return Droplet{}, false
 	}
-	droplet = droplets[0]
-	return droplet, true
+	return droplets[0], true
 }
 
 func findOutdatedApps(client *cfclient.Client, apps []App, buildpacks map[string]cfclient.Buildpack) (outdatedApps []App) {
