@@ -6,5 +6,6 @@ export GOPATH=$(pwd)/gopath
 export PATH=$PATH:$GOPATH/bin
 
 cd gopath/src/github.com/18F/cg-buildpack-notify
+go build
 
-go run main.go
+./cg-buildpack-notify

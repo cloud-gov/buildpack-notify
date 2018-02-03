@@ -1,33 +1,47 @@
 resource_types:
-- name: semver-iam
-  type: docker-image
-  source:
-    repository: governmentpaas/semver-resource
-- name: slack-notification
-  type: docker-image
-  source:
-    repository: cfcommunity/slack-notification-resource
-
 - name: pull-request
   type: docker-image
   source:
     repository: jtarchie/pr
 
+- name: slack-notification
+  type: docker-image
+  source:
+    repository: cfcommunity/slack-notification-resource
+
 resources:
 - name: check-buildpack-updates
   type: time
-  source: {interval: 60m}
+  source:
+    interval: 60m
+
 - name: notify-src
   type: git
   source:
     uri: ((cg-buildpack-notify))
     branch: ((cg-buildpack-notify-branch))
+
 - name: pull-request
   type: pull-request
   source:
     repo: ((cg-buildpack-notify-github-repo-name))
     access_token: ((status-access-token))
     every: true
+
+- name: state-staging
+  type: s3-iam
+  source:
+    bucket: ((state-bucket-staging))
+    versioned_file: ((state-key-staging))
+    region_name: ((state-aws-region-staging))
+
+- name: state-production
+  type: s3-iam
+  source:
+    bucket: ((state-bucket-production))
+    versioned_file: ((state-key-production))
+    region_name: ((state-aws-region-production))
+
 - name: slack
   type: slack-notification
   source:
@@ -57,20 +71,28 @@ jobs:
       params:
         path: pull-request
         status: failure
+
 - name: test-cg-buildpack-notify
   plan:
   - get: notify-src
     trigger: true
   - task: run-tests
     file: notify-src/ci/run-tests.yml
+
 - name: notify-customers-staging
   plan:
   - get: check-buildpack-updates
     trigger: true
   - get: notify-src
+    passed: [test-cg-buildpack-notify]
+  - get: state
+    resource: state-staging
   - task: do-notify
     file: notify-src/ci/notify.yml
     params:
+      IN_STATE: state/((state-key-staging))
+      OUT_STATE: out-state/state.json
+      DRY_RUN: ((dry-run-staging))
       CF_API: ((cf-api-staging))
       CLIENT_ID: ((cf-client-id-staging))
       CLIENT_SECRET: ((cf-client-secret-staging))
@@ -79,6 +101,9 @@ jobs:
       SMTP_PASSWORD: ((smtp-from-staging))
       SMTP_HOST: ((smtp-from-staging))
       SMTP_PORT: ((smtp-from-staging))
+  - put: state-staging
+    params:
+      file: out-state/state.json
   on_failure:
     put: slack
     params:
@@ -94,9 +119,15 @@ jobs:
   - get: check-buildpack-updates
     trigger: true
   - get: notify-src
+    passed: [notify-customers-production]
+  - get: state
+    resource: state-production
   - task: do-notify
     file: notify-src/ci/notify.yml
     params:
+      IN_STATE: state/((state-key-staging))
+      OUT_STATE: out-state/state.json
+      DRY_RUN: ((dry-run-production))
       CF_API: ((cf-api-production))
       CLIENT_ID: ((cf-client-id-production))
       CLIENT_SECRET: ((cf-client-secret-production))
@@ -105,6 +136,9 @@ jobs:
       SMTP_PASSWORD: ((smtp-from-production))
       SMTP_HOST: ((smtp-from-production))
       SMTP_PORT: ((smtp-from-production))
+  - put: state-production
+    params:
+      file: out-state/state.json
   on_failure:
     put: slack
     params:

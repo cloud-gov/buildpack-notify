@@ -7,5 +7,8 @@ image_resource:
 inputs:
 - name: notify-src
   path: gopath/src/github.com/18F/cg-buildpack-notify
+- name: state-staging
+outputs:
+- name: out-state
 run:
   path: gopath/src/github.com/18F/cg-buildpack-notify/ci/notify.sh
