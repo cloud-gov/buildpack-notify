@@ -66,7 +66,7 @@ uaac client add buildpack-notify \
 
 ### Unit Tests
 
-You can run tests with: `go test`
+You can run tests with: `go test`. Template tests compare test output against pre-rendered templates that are included in version control. To update pre-rendered templates, run tests with `OVERRIDE_TEMPLATES=1`.
 
 ### Integration Tests
 
