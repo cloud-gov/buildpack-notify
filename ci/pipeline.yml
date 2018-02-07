@@ -4,6 +4,11 @@ resource_types:
   source:
     repository: jtarchie/pr
 
+- name: s3-iam
+  type: docker-image
+  source:
+    repository: 18fgsa/s3-resource
+
 - name: slack-notification
   type: docker-image
   source:
@@ -18,8 +23,8 @@ resources:
 - name: notify-src
   type: git
   source:
-    uri: ((cg-buildpack-notify))
-    branch: ((cg-buildpack-notify-branch))
+    uri: ((cg-buildpack-notify-git-uri))
+    branch: ((cg-buildpack-notify-git-branch))
 
 - name: pull-request
   type: pull-request
@@ -60,9 +65,9 @@ jobs:
       path: pull-request
       status: pending
   - task: build
+    file: pull-request/ci/run-tests.yml
     input_mapping:
       notify-src: pull-request
-    file: pull-request/ci/run-tests.yml
     on_success:
       put: pull-request
       params:
@@ -99,10 +104,10 @@ jobs:
       CLIENT_ID: ((cf-client-id-staging))
       CLIENT_SECRET: ((cf-client-secret-staging))
       SMTP_FROM: ((smtp-from-staging))
-      SMTP_USER: ((smtp-from-staging))
-      SMTP_PASSWORD: ((smtp-from-staging))
-      SMTP_HOST: ((smtp-from-staging))
-      SMTP_PORT: ((smtp-from-staging))
+      SMTP_USER: ((smtp-user-staging))
+      SMTP_PASSWORD: ((smtp-password-staging))
+      SMTP_HOST: ((smtp-host-staging))
+      SMTP_PORT: ((smtp-port-staging))
   - put: state-staging
     params:
       file: out-state/state.json
@@ -121,7 +126,7 @@ jobs:
   - get: check-buildpack-updates
     trigger: true
   - get: notify-src
-    passed: [notify-customers-production]
+    passed: [notify-customers-staging]
   - get: state
     resource: state-production
   - task: do-notify
