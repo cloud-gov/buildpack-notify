@@ -5,8 +5,14 @@ our customers. Buildpack updates include programming language updates and
 often include security fixes.
 
 We recently updated buildpacks in use by your applications. You should 
-restage your applications to take advantage of the update. You can do this by
-opening the command line and entering the following commands:
+restage or redeploy your applications to take advantage of the update. 
+
+Keep in mind that restaging is the quickest way to
+upgrade, but causes downtime so you may want to leverage your deployment infastructure
+if you have set up zero-downtime deploys.
+
+You can restage your applications by opening the command line and entering 
+the following commands.
 
   cf target -o sandbox -s dev ; cf restage my-drupal-app
 

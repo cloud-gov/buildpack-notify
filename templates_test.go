@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"io/ioutil"
+	"os"
 	"path/filepath"
 	"testing"
 
@@ -52,6 +53,12 @@ func TestGetNotifyEmail(t *testing.T) {
 			err := templates.getNotifyEmail(body, tc.email)
 			if err != nil {
 				t.Errorf("Can't construct final email. Error %s", err.Error())
+			}
+			if os.Getenv("OVERRIDE_TEMPLATES") == "1" {
+				err := ioutil.WriteFile(tc.expectedEmail, body.Bytes(), 0644)
+				if err != nil {
+					t.Errorf("Can't save expected email. Error %s", err.Error())
+				}
 			}
 			expectedBody, err := ioutil.ReadFile(tc.expectedEmail)
 			if err != nil {
