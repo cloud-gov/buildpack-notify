@@ -12,13 +12,13 @@ type Mailer interface {
 }
 
 // InitSMTPMailer creates a new SMTP Mailer
-func InitSMTPMailer(config emailConfig) Mailer {
+func InitSMTPMailer(config EmailConfig) Mailer {
 	return &smtpMailer{
-		smtpHost: config.host,
-		smtpPort: config.port,
-		smtpUser: config.user,
-		smtpPass: config.password,
-		smtpFrom: config.from,
+		smtpHost: config.Host,
+		smtpPort: config.Port,
+		smtpUser: config.User,
+		smtpPass: config.Password,
+		smtpFrom: config.From,
 	}
 }
 

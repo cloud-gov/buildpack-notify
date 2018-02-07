@@ -1,49 +1,54 @@
 resource_types:
-- name: semver-iam
-  type: docker-image
-  source:
-    repository: governmentpaas/semver-resource
-- name: slack-notification
-  type: docker-image
-  source:
-    repository: cfcommunity/slack-notification-resource
-
 - name: pull-request
   type: docker-image
   source:
     repository: jtarchie/pr
 
+- name: s3-iam
+  type: docker-image
+  source:
+    repository: 18fgsa/s3-resource
+
+- name: slack-notification
+  type: docker-image
+  source:
+    repository: cfcommunity/slack-notification-resource
+
 resources:
 - name: check-buildpack-updates
   type: time
-  source: {interval: 60m}
+  source:
+    interval: 60m
+
 - name: notify-src
   type: git
   source:
-    uri: ((cg-buildpack-notify))
-    branch: ((cg-buildpack-notify-branch))
-- name: cg-buildpack-notify-deploy-staging
-  type: cf
-  source:
-    api: ((cf-api-staging))
-    username: ((deployer-username-staging))
-    password: ((deployer-password-staging))
-    organization: ((cf-org-staging))
-    space: ((cf-space-staging))
-- name: cg-buildpack-notify-deploy-production
-  type: cf
-  source:
-    api: ((cf-api-production))
-    username: ((deployer-username-production))
-    password: ((deployer-password-production))
-    organization: ((cf-org-production))
-    space: ((cf-space-production))
+    uri: ((cg-buildpack-notify-git-uri))
+    branch: ((cg-buildpack-notify-git-branch))
+
 - name: pull-request
   type: pull-request
   source:
     repo: ((cg-buildpack-notify-github-repo-name))
     access_token: ((status-access-token))
     every: true
+
+- name: state-staging
+  type: s3-iam
+  source:
+    bucket: ((state-bucket-staging))
+    versioned_file: state.json
+    region_name: ((state-aws-region-staging))
+    server_side_encryption: AES256
+
+- name: state-production
+  type: s3-iam
+  source:
+    bucket: ((state-bucket-production))
+    versioned_file: state.json
+    region_name: ((state-aws-region-production))
+    server_side_encryption: AES256
+
 - name: slack
   type: slack-notification
   source:
@@ -60,9 +65,9 @@ jobs:
       path: pull-request
       status: pending
   - task: build
+    file: pull-request/ci/run-tests.yml
     input_mapping:
       notify-src: pull-request
-    file: pull-request/ci/run-tests.yml
     on_success:
       put: pull-request
       params:
@@ -73,82 +78,39 @@ jobs:
       params:
         path: pull-request
         status: failure
+
 - name: test-cg-buildpack-notify
   plan:
   - get: notify-src
     trigger: true
   - task: run-tests
     file: notify-src/ci/run-tests.yml
-- name: push-cg-buildpack-notify-staging
-  plan:
-  - aggregate:
-    - get: notify-src
-      passed: [test-cg-buildpack-notify]
-      trigger: true
-  - put: cg-buildpack-notify-deploy-staging
-    params:
-      path: notify-src
-      manifest: notify-src/manifest.yml
-  on_failure:
-    put: slack
-    params:
-      text: |
-        :x: FAILED to deploy buildpack-notifier on ((cf-api-staging))
-        <$ATC_EXTERNAL_URL/teams/$BUILD_TEAM_NAME/pipelines/$BUILD_PIPELINE_NAME/jobs/$BUILD_JOB_NAME/builds/$BUILD_NAME|View build details>
-      channel: ((slack-channel))
-      username: ((slack-username))
-      icon_url: ((slack-icon-url))
-  on_success:
-    put: slack
-    params:
-      text: |
-        :white_check_mark: Successfully deployed buildpack-notifier on ((cf-api-staging))
-        <$ATC_EXTERNAL_URL/teams/$BUILD_TEAM_NAME/pipelines/$BUILD_PIPELINE_NAME/jobs/$BUILD_JOB_NAME/builds/$BUILD_NAME|View build details>
-      channel: ((slack-channel))
-      username: ((slack-username))
-      icon_url: ((slack-icon-url))
-- name: push-cg-buildpack-notify-production
-  plan:
-  - aggregate:
-    - get: notify-src
-      passed: [push-cg-buildpack-notify-staging]
-      trigger: true
-  - put: cg-buildpack-notify-deploy-production
-    params:
-      path: notify-src
-      manifest: notify-src/manifest.yml
-  on_failure:
-    put: slack
-    params:
-      text: |
-        :x: FAILED to deploy buildpack-notifier on ((cf-api-production))
-        <$ATC_EXTERNAL_URL/teams/$BUILD_TEAM_NAME/pipelines/$BUILD_PIPELINE_NAME/jobs/$BUILD_JOB_NAME/builds/$BUILD_NAME|View build details>
-      channel: ((slack-channel))
-      username: ((slack-username))
-      icon_url: ((slack-icon-url))
-  on_success:
-    put: slack
-    params:
-      text: |
-        :white_check_mark: Successfully deployed buildpack-notifier on ((cf-api-production))
-        <$ATC_EXTERNAL_URL/teams/$BUILD_TEAM_NAME/pipelines/$BUILD_PIPELINE_NAME/jobs/$BUILD_JOB_NAME/builds/$BUILD_NAME|View build details>
-      channel: ((slack-channel))
-      username: ((slack-username))
-      icon_url: ((slack-icon-url))
+
 - name: notify-customers-staging
   plan:
   - get: check-buildpack-updates
     trigger: true
   - get: notify-src
+    passed: [test-cg-buildpack-notify]
+  - get: state
+    resource: state-staging
   - task: do-notify
     file: notify-src/ci/notify.yml
     params:
+      IN_STATE: state/state.json
+      OUT_STATE: out-state/state.json
+      DRY_RUN: ((dry-run-staging))
       CF_API: ((cf-api-staging))
-      CF_ORGANIZATION: ((cf-org-staging))
-      CF_SPACE: ((cf-space-staging))
-      CF_USERNAME: ((deployer-username-staging))
-      CF_PASSWORD: ((deployer-password-staging))
-      ADDITIONAL_ARGS: ((additional-args-staging))
+      CLIENT_ID: ((cf-client-id-staging))
+      CLIENT_SECRET: ((cf-client-secret-staging))
+      SMTP_FROM: ((smtp-from-staging))
+      SMTP_USER: ((smtp-user-staging))
+      SMTP_PASSWORD: ((smtp-password-staging))
+      SMTP_HOST: ((smtp-host-staging))
+      SMTP_PORT: ((smtp-port-staging))
+  - put: state-staging
+    params:
+      file: out-state/state.json
   on_failure:
     put: slack
     params:
@@ -164,15 +126,26 @@ jobs:
   - get: check-buildpack-updates
     trigger: true
   - get: notify-src
+    passed: [notify-customers-staging]
+  - get: state
+    resource: state-production
   - task: do-notify
     file: notify-src/ci/notify.yml
     params:
+      IN_STATE: state/state.json
+      OUT_STATE: out-state/state.json
+      DRY_RUN: ((dry-run-production))
       CF_API: ((cf-api-production))
-      CF_ORGANIZATION: ((cf-org-production))
-      CF_SPACE: ((cf-space-production))
-      CF_USERNAME: ((deployer-username-production))
-      CF_PASSWORD: ((deployer-password-production))
-      ADDITIONAL_ARGS: ((additional-args-production))
+      CLIENT_ID: ((cf-client-id-production))
+      CLIENT_SECRET: ((cf-client-secret-production))
+      SMTP_FROM: ((smtp-from-production))
+      SMTP_USER: ((smtp-from-production))
+      SMTP_PASSWORD: ((smtp-from-production))
+      SMTP_HOST: ((smtp-from-production))
+      SMTP_PORT: ((smtp-from-production))
+  - put: state-production
+    params:
+      file: out-state/state.json
   on_failure:
     put: slack
     params:

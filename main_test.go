@@ -8,7 +8,7 @@ import (
 	"testing"
 
 	"github.com/18F/cg-buildpack-notify/mocks"
-	cfclient "github.com/cloudfoundry-community/go-cfclient"
+	"github.com/cloudfoundry-community/go-cfclient"
 	"github.com/stretchr/testify/mock"
 )
 

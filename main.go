@@ -2,8 +2,9 @@ package main
 
 import (
 	"bytes"
-	"flag"
+	"encoding/json"
 	"fmt"
+	"io"
 	"log"
 	"net/http"
 	"net/mail"
@@ -11,209 +12,133 @@ import (
 	"os"
 	"time"
 
-	"github.com/jinzhu/gorm"
-	_ "github.com/jinzhu/gorm/dialects/postgres"
-	_ "github.com/lib/pq"
-
-	cfclient "github.com/cloudfoundry-community/go-cfclient"
-	cfenv "github.com/cloudfoundry-community/go-cfenv"
+	"github.com/cloudfoundry-community/go-cfclient"
+	"github.com/kelseyhightower/envconfig"
 )
 
 // TODO: handle errors centrally.
 
-const (
-	cfUPSCreds    = "notify-cf-creds"
-	emailUPSCreds = "notify-email-creds"
-)
-
-type emailConfig struct {
-	from     string
-	host     string
-	password string
-	port     string
-	user     string
+type Config struct {
+	InState  string `envconfig:"in_state" required:"true"`
+	OutState string `envconfig:"out_state" required:"true"`
+	DryRun   bool   `envconfig:"dry_run"`
 }
 
-type cfConfig struct {
-	api          string
-	clientID     string
-	clientSecret string
+type EmailConfig struct {
+	From     string `envconfig:"smtp_from" required:"true"`
+	Host     string `envconfig:"smtp_host" required:"true"`
+	Password string `envconfig:"smtp_password" required:"true"`
+	Port     string `envconfig:"smtp_port" required:"true"`
+	User     string `envconfig:"smtp_user" required:"true"`
 }
 
-type dbConfig struct {
-	databaseURL string
+type CFAPIConfig struct {
+	API          string `envconfig:"cf_api" required:"true"`
+	ClientID     string `envconfig:"client_id" required:"true"`
+	ClientSecret string `envconfig:"client_secret" required:"true"`
 }
 
-type notifyStore interface {
-	GetBuildpacks() map[string]buildpackRecord
-	SaveBuildpack(*buildpackRecord)
+type buildpackRecord struct {
+	LastUpdatedAt string
 }
 
-type dbNotifyStore struct {
-	db     *gorm.DB
-	dryRun bool
-}
-
-func newDBNotifyStore(db *gorm.DB, clear, dryRun bool) notifyStore {
-	if clear {
-		log.Println("Dropping tables...")
-		db.DropTableIfExists(&buildpackRecord{})
-	}
-	db.AutoMigrate(&buildpackRecord{})
-	return &dbNotifyStore{db: db, dryRun: dryRun}
-}
-
-func (s *dbNotifyStore) GetBuildpacks() map[string]buildpackRecord {
-	buildpacks := []buildpackRecord{}
-	err := s.db.Find(&buildpacks).Error
+func loadState(path string) (map[string]buildpackRecord, error) {
+	fp, err := os.Open(path)
 	if err != nil {
-		log.Fatalf("Unable to get buildpack records from notify database. Error: %s", err.Error())
+		return nil, err
 	}
-	m := make(map[string]buildpackRecord, len(buildpacks))
-	for _, buildpack := range buildpacks {
-		m[buildpack.Guid] = buildpack
+	defer fp.Close()
+	decoder := json.NewDecoder(fp)
+	var state map[string]buildpackRecord
+	if err := decoder.Decode(&state); err != nil {
+		return nil, err
 	}
-	return m
+	return state, nil
 }
 
-func (s *dbNotifyStore) SaveBuildpack(buildpack *buildpackRecord) {
-	log.Printf("Saving / updating buildpack %s", buildpack.Guid)
-	if s.dryRun {
-		return
-	}
-	newRecord := s.db.NewRecord(buildpack)
-	var err error
-	if newRecord {
-		err = s.db.Create(buildpack).Error
-	} else {
-		err = s.db.Save(buildpack).Error
-	}
+func copyState(inPath, outPath string) error {
+	in, err := os.Open(inPath)
 	if err != nil {
-		log.Fatalf("Unable to save record for buildpack. Guid: %s. Error %s", buildpack.Guid, err.Error())
+		return err
 	}
-
+	defer in.Close()
+	out, err := os.Create(outPath)
+	if err != nil {
+		return err
+	}
+	defer out.Close()
+	_, err = io.Copy(out, in)
+	return err
 }
 
-func dbConnect(dbConfig dbConfig) (*gorm.DB, error) {
-	return gorm.Open("postgres", dbConfig.databaseURL)
-}
-
-func getDBConfig() dbConfig {
-	return dbConfig{
-		databaseURL: os.Getenv("DATABASE_URL"),
+func saveState(state map[string]buildpackRecord, path string) error {
+	fp, err := os.Create(path)
+	if err != nil {
+		return err
 	}
-}
-
-func getCFConfig(cfEnv *cfenv.App) cfConfig {
-	config := cfConfig{
-		api:          os.Getenv("CF_API"),
-		clientID:     os.Getenv("CLIENT_ID"),
-		clientSecret: os.Getenv("CLIENT_SECRET"),
-	}
-	if cfEnv != nil {
-		if service, err := cfEnv.Services.WithName(cfUPSCreds); err == nil {
-			log.Println("Using UPS for CF creds")
-			if api, found := service.Credentials["CF_API"]; found {
-				config.api = api.(string)
-			}
-			if clientID, found := service.Credentials["CLIENT_ID"]; found {
-				config.clientID = clientID.(string)
-			}
-			if clientSecret, found := service.Credentials["CLIENT_SECRET"]; found {
-				config.clientSecret = clientSecret.(string)
-			}
-		}
-	}
-	return config
-}
-
-func getEmailConfig(cfEnv *cfenv.App) emailConfig {
-	config := emailConfig{
-		from:     os.Getenv("SMTP_FROM"),
-		host:     os.Getenv("SMTP_HOST"),
-		password: os.Getenv("SMTP_PASS"),
-		port:     os.Getenv("SMTP_PORT"),
-		user:     os.Getenv("SMTP_USER"),
-	}
-	if cfEnv != nil {
-		if service, err := cfEnv.Services.WithName(emailUPSCreds); err == nil {
-			log.Println("Using UPS for email creds")
-			if smtpFrom, found := service.Credentials["SMTP_FROM"]; found {
-				config.from = smtpFrom.(string)
-			}
-			if smtpHost, found := service.Credentials["SMTP_HOST"]; found {
-				config.host = smtpHost.(string)
-			}
-			if smtpPass, found := service.Credentials["SMTP_PASS"]; found {
-				config.password = smtpPass.(string)
-			}
-			if smtpPort, found := service.Credentials["SMTP_PORT"]; found {
-				config.port = smtpPort.(string)
-			}
-			if smtpUser, found := service.Credentials["SMTP_USER"]; found {
-				config.user = smtpUser.(string)
-			}
-		}
-	}
-	return config
+	defer fp.Close()
+	encoder := json.NewEncoder(fp)
+	return encoder.Encode(state)
 }
 
 func main() {
-	cfEnv, err := cfenv.Current()
-	if err != nil {
-		log.Println("Could not find cf env")
+	var (
+		config      Config
+		emailConfig EmailConfig
+		cfAPIConfig CFAPIConfig
+	)
+
+	if err := envconfig.Process("", &config); err != nil {
+		log.Fatalf("Unable to parse config: %s", err.Error())
 	}
-	config := getEmailConfig(cfEnv)
-	dbConfig := getDBConfig()
-	cfAPIConfig := getCFConfig(cfEnv)
-	db, err := dbConnect(dbConfig)
-	if err != nil {
-		log.Fatalf("Unable to connect to database. Error: %s", err.Error())
+	if err := envconfig.Process("", &emailConfig); err != nil {
+		log.Fatalf("Unable to parse email config: %s", err.Error())
 	}
+	if err := envconfig.Process("", &cfAPIConfig); err != nil {
+		log.Fatalf("Unable to parse cf api config: %s", err.Error())
+	}
+
+	if config.DryRun {
+		log.Println("Dry-Run mode activated. No modifications happening")
+	}
+
+	state, err := loadState(config.InState)
+	if err != nil {
+		log.Fatalf("Error reading state: %s", err)
+	}
+
 	templates, err := initTemplates()
 	if err != nil {
-		log.Fatalf("Unable to initialize templates. Error: %s", err.Error())
+		log.Fatalf("Unable to initialize templates: %s", err)
 	}
 	client, err := cfclient.NewClient(&cfclient.Config{
-		ApiAddress:        cfAPIConfig.api,
-		ClientID:          cfAPIConfig.clientID,
-		ClientSecret:      cfAPIConfig.clientSecret,
+		ApiAddress:        cfAPIConfig.API,
+		ClientID:          cfAPIConfig.ClientID,
+		ClientSecret:      cfAPIConfig.ClientSecret,
 		SkipSslValidation: os.Getenv("INSECURE") == "1",
 		HttpClient:        &http.Client{Timeout: 30 * time.Second},
 	})
 	if err != nil {
 		log.Fatalf("Unable to create client. Error: %s", err.Error())
 	}
-	clear := flag.Bool("clear", false, "clear database tables of values")
-	notify := flag.Bool("notify", false, "run notification program")
-	dryRun := flag.Bool("dry-run", false, "run the program without actual modifications or sending")
-	flag.Parse()
-	store := newDBNotifyStore(db, *clear, *dryRun)
-	if *dryRun {
-		log.Println("Dry-Run mode activated. No modifications happening")
-	}
-	if *notify {
-		log.Println("Calculating notifications to send for outdated buildpacks.")
-		mailer := InitSMTPMailer(config)
-		apps, buildpacks := getAppsAndBuildpacks(client, store)
-		outdatedApps := findOutdatedApps(client, apps, buildpacks)
-		outdatedV2Apps := convertToV2Apps(client, outdatedApps)
-		owners := findOwnersOfApps(outdatedV2Apps, client)
-		log.Printf("Will notify %d owners of outdated apps.\n", len(owners))
-		sendNotifyEmailToUsers(owners, templates, mailer, *dryRun)
+	log.Println("Calculating notifications to send for outdated buildpacks.")
+	mailer := InitSMTPMailer(emailConfig)
+	apps, buildpacks, state := getAppsAndBuildpacks(client, state)
+	outdatedApps := findOutdatedApps(client, apps, buildpacks)
+	outdatedV2Apps := convertToV2Apps(client, outdatedApps)
+	owners := findOwnersOfApps(outdatedV2Apps, client)
+	log.Printf("Will notify %d owners of outdated apps.\n", len(owners))
+	sendNotifyEmailToUsers(owners, templates, mailer, config.DryRun)
+
+	if config.DryRun {
+		if err := copyState(config.InState, config.OutState); err != nil {
+			log.Fatalf("Error copying state: %s", err)
+		}
 	} else {
-		log.Println("Starting notification server.")
-		err := http.ListenAndServe(":"+os.Getenv("PORT"), nil)
-		if err != nil {
-			log.Fatalf("Unable to start server. Error %s", err.Error())
+		if err := saveState(state, config.OutState); err != nil {
+			log.Fatalf("Error saving state: %s", err)
 		}
 	}
-}
-
-type buildpackRecord struct {
-	gorm.Model
-	Guid          string
-	LastUpdatedAt string
 }
 
 // convertToV2Apps will take a V3 App object and convert it to a V2 App object.
@@ -230,9 +155,8 @@ func convertToV2Apps(client *cfclient.Client, apps []App) []cfclient.App {
 	return v2Apps
 }
 
-func filterForNewlyUpdatedBuildpacks(buildpacks []cfclient.Buildpack, store notifyStore) []cfclient.Buildpack {
+func filterForNewlyUpdatedBuildpacks(buildpacks []cfclient.Buildpack, state map[string]buildpackRecord) ([]cfclient.Buildpack, map[string]buildpackRecord) {
 	filteredBuildpacks := []cfclient.Buildpack{}
-	storedBuildpacks := store.GetBuildpacks()
 	// Go through the passed in buildpacks
 	// Check if current buildpack.guid matches a guid in storeBuildpacks
 	// 1) If so, compare the buildpack.Meta.UpdatedAt with the storeBuildpack.LastUpdatedAt
@@ -243,10 +167,10 @@ func filterForNewlyUpdatedBuildpacks(buildpacks []cfclient.Buildpack, store noti
 	// for buildpacks return buildpack.guid in stored.
 
 	for _, buildpack := range buildpacks {
-		storedBuildpack, found := storedBuildpacks[buildpack.Guid]
+		storedBuildpack, found := state[buildpack.Guid]
 		if !found {
 			filteredBuildpacks = append(filteredBuildpacks, buildpack)
-			store.SaveBuildpack(&buildpackRecord{Guid: buildpack.Guid, LastUpdatedAt: buildpack.UpdatedAt})
+			state[buildpack.Guid] = buildpackRecord{LastUpdatedAt: buildpack.UpdatedAt}
 		} else {
 			buildpackUpdatedAt, err := time.Parse(time.RFC3339, buildpack.UpdatedAt)
 			if err != nil {
@@ -256,13 +180,11 @@ func filterForNewlyUpdatedBuildpacks(buildpacks []cfclient.Buildpack, store noti
 			storedBuildpackUpdatedAt, err := time.Parse(time.RFC3339, storedBuildpack.LastUpdatedAt)
 			if err != nil {
 				log.Fatalf("Unable to parse stored buildpack LastUpdatedAt time. Buildpack GUID %s Error %s",
-					storedBuildpack.Guid, err)
+					buildpack.Guid, err)
 			}
-
 			if buildpackUpdatedAt.After(storedBuildpackUpdatedAt) {
 				filteredBuildpacks = append(filteredBuildpacks, buildpack)
-				storedBuildpack.LastUpdatedAt = buildpack.UpdatedAt
-				store.SaveBuildpack(&storedBuildpack)
+				state[buildpack.Guid] = buildpackRecord{LastUpdatedAt: buildpack.UpdatedAt}
 			} else {
 				log.Printf("Supported Buildpack %s has not been updated\n", buildpack.Name)
 				continue
@@ -271,10 +193,10 @@ func filterForNewlyUpdatedBuildpacks(buildpacks []cfclient.Buildpack, store noti
 
 	}
 
-	return filteredBuildpacks
+	return filteredBuildpacks, state
 }
 
-func getAppsAndBuildpacks(client *cfclient.Client, store notifyStore) ([]App, map[string]cfclient.Buildpack) {
+func getAppsAndBuildpacks(client *cfclient.Client, state map[string]buildpackRecord) ([]App, map[string]cfclient.Buildpack, map[string]buildpackRecord) {
 	apps, err := ListApps(client)
 	if err != nil {
 		log.Fatalf("Unable to get apps. Error: %s", err.Error())
@@ -284,14 +206,14 @@ func getAppsAndBuildpacks(client *cfclient.Client, store notifyStore) ([]App, ma
 	if err != nil {
 		log.Fatalf("Unable to get buildpacks. Error: %s", err)
 	}
-	filteredBuildpackList := filterForNewlyUpdatedBuildpacks(buildpackList, store)
+	filteredBuildpackList, state := filterForNewlyUpdatedBuildpacks(buildpackList, state)
 
 	// Create a map with the key being the buildpack name for quick comparison later on.
 	buildpacks := make(map[string]cfclient.Buildpack)
 	for _, buildpack := range filteredBuildpackList {
 		buildpacks[buildpack.Name] = buildpack
 	}
-	return apps, buildpacks
+	return apps, buildpacks, state
 }
 
 // isDropletUsingSupportedBuildpack checks the buildpacks the droplet is using and comparing to see if one of them
