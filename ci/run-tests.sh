@@ -3,7 +3,10 @@
 set -e -x
 
 export GOPATH=$(pwd)/gopath
+export PATH=$PATH:/$GOPATH/bin
+
+go get -u github.com/golang/dep/cmd/dep
 
 cd gopath/src/github.com/18F/cg-buildpack-notify
-glide install
+dep ensure
 go test $(go list ./... | grep -v /vendor/)
