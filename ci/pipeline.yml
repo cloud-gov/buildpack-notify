@@ -37,7 +37,7 @@ resources:
   type: s3-iam
   source:
     bucket: ((state-bucket-staging))
-    versioned_file: ((state-key-staging))
+    versioned_file: state.json
     region_name: ((state-aws-region-staging))
     server_side_encryption: AES256
 
@@ -45,7 +45,7 @@ resources:
   type: s3-iam
   source:
     bucket: ((state-bucket-production))
-    versioned_file: ((state-key-production))
+    versioned_file: state.json
     region_name: ((state-aws-region-production))
     server_side_encryption: AES256
 
@@ -97,7 +97,7 @@ jobs:
   - task: do-notify
     file: notify-src/ci/notify.yml
     params:
-      IN_STATE: state/((state-key-staging))
+      IN_STATE: state/state.json
       OUT_STATE: out-state/state.json
       DRY_RUN: ((dry-run-staging))
       CF_API: ((cf-api-staging))
@@ -132,7 +132,7 @@ jobs:
   - task: do-notify
     file: notify-src/ci/notify.yml
     params:
-      IN_STATE: state/((state-key-staging))
+      IN_STATE: state/state.json
       OUT_STATE: out-state/state.json
       DRY_RUN: ((dry-run-production))
       CF_API: ((cf-api-production))
