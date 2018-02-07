@@ -34,6 +34,7 @@ resources:
     bucket: ((state-bucket-staging))
     versioned_file: ((state-key-staging))
     region_name: ((state-aws-region-staging))
+    server_side_encryption: AES256
 
 - name: state-production
   type: s3-iam
@@ -41,6 +42,7 @@ resources:
     bucket: ((state-bucket-production))
     versioned_file: ((state-key-production))
     region_name: ((state-aws-region-production))
+    server_side_encryption: AES256
 
 - name: slack
   type: slack-notification
