@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"io"
 	"log"
 	"net/http"
 	"net/mail"
@@ -18,9 +19,9 @@ import (
 // TODO: handle errors centrally.
 
 type Config struct {
-	InState string `envconfig:"in_state" required:"true"`
+	InState  string `envconfig:"in_state" required:"true"`
 	OutState string `envconfig:"out_state" required:"true"`
-	DryRun bool `envconfig:"dry_run"`
+	DryRun   bool   `envconfig:"dry_run"`
 }
 
 type EmailConfig struct {
@@ -55,6 +56,21 @@ func loadState(path string) (map[string]buildpackRecord, error) {
 	return state, nil
 }
 
+func copyState(inPath, outPath string) error {
+	in, err := os.Open(inPath)
+	if err != nil {
+		return err
+	}
+	defer in.Close()
+	out, err := os.Create(outPath)
+	if err != nil {
+		return err
+	}
+	defer out.Close()
+	_, err = io.Copy(out, in)
+	return err
+}
+
 func saveState(state map[string]buildpackRecord, path string) error {
 	fp, err := os.Create(path)
 	if err != nil {
@@ -67,7 +83,7 @@ func saveState(state map[string]buildpackRecord, path string) error {
 
 func main() {
 	var (
-		config Config
+		config      Config
 		emailConfig EmailConfig
 		cfAPIConfig CFAPIConfig
 	)
@@ -114,8 +130,14 @@ func main() {
 	log.Printf("Will notify %d owners of outdated apps.\n", len(owners))
 	sendNotifyEmailToUsers(owners, templates, mailer, config.DryRun)
 
-	if err := saveState(state, config.OutState); err != nil {
-		log.Fatalf("Error saving state: %s", err)
+	if config.DryRun {
+		if err := copyState(config.InState, config.OutState); err != nil {
+			log.Fatalf("Error copying state: %s", err)
+		}
+	} else {
+		if err := saveState(state, config.OutState); err != nil {
+			log.Fatalf("Error saving state: %s", err)
+		}
 	}
 }
 
