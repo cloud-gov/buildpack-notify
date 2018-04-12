@@ -140,10 +140,10 @@ jobs:
       CLIENT_ID: ((cf-client-id-production))
       CLIENT_SECRET: ((cf-client-secret-production))
       SMTP_FROM: ((smtp-from-production))
-      SMTP_USER: ((smtp-from-production))
-      SMTP_PASSWORD: ((smtp-from-production))
-      SMTP_HOST: ((smtp-from-production))
-      SMTP_PORT: ((smtp-from-production))
+      SMTP_USER: ((smtp-user-production))
+      SMTP_PASSWORD: ((smtp-password-production))
+      SMTP_HOST: ((smtp-host-production))
+      SMTP_PORT: ((smtp-port-production))
       SMTP_CERT: ((smtp-cert-production))
   - put: state-production
     params:
