@@ -9,4 +9,4 @@ go get -u github.com/golang/dep/cmd/dep
 
 cd gopath/src/github.com/18F/cg-buildpack-notify
 dep ensure
-go test $(go list ./... | grep -v /vendor/)
+go test -v $(go list ./... | grep -v /vendor/)
