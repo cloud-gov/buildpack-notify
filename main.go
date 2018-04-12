@@ -30,6 +30,7 @@ type EmailConfig struct {
 	Password string `envconfig:"smtp_password" required:"true"`
 	Port     string `envconfig:"smtp_port" required:"true"`
 	User     string `envconfig:"smtp_user" required:"true"`
+	Cert     string `envconfig:"smtp_cert"`
 }
 
 type CFAPIConfig struct {
