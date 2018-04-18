@@ -51,7 +51,7 @@ func (s *smtpMailer) SendEmail(emailAddress, subject string, body []byte) error 
 	e.Text = body
 	e.Subject = subject
 
-	addr := s.smtpHost + ":" + s.smtpPass
+	addr := s.smtpHost + ":" + s.smtpPort
 	auth := smtp.PlainAuth("", s.smtpUser, s.smtpPass, s.smtpHost)
 
 	if s.tlsConfig != nil {
