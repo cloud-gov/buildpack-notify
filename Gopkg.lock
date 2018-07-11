@@ -2,10 +2,22 @@
 
 
 [[projects]]
+  name = "github.com/Masterminds/semver"
+  packages = ["."]
+  revision = "c7af12943936e8c39859482e61f0574c2fd7fc75"
+  version = "v1.4.2"
+
+[[projects]]
   branch = "master"
   name = "github.com/cloudfoundry-community/go-cfclient"
   packages = ["."]
-  revision = "a9d40785ae9c352875d66d2b1b04eaa27734197a"
+  revision = "c9b465ea2cf065b0096ac4447926d59dbc9e8a26"
+
+[[projects]]
+  branch = "master"
+  name = "github.com/cloudfoundry/gofileutils"
+  packages = ["fileutils"]
+  revision = "4d0c80011a0f37da1711c184028bc40137cd45af"
 
 [[projects]]
   name = "github.com/davecgh/go-spew"
@@ -16,8 +28,8 @@
 [[projects]]
   name = "github.com/golang/protobuf"
   packages = ["proto"]
-  revision = "925541529c1fa6821df4e44ce2723319eb2be768"
-  version = "v1.0.0"
+  revision = "b4deda0973fb4c70b50d226b1af49f3da59f5265"
+  version = "v1.1.0"
 
 [[projects]]
   name = "github.com/jordan-wright/email"
@@ -46,42 +58,60 @@
 [[projects]]
   name = "github.com/stretchr/objx"
   packages = ["."]
-  revision = "facf9a85c22f48d2f52f2380e4efce1768749a89"
-  version = "v0.1"
+  revision = "477a77ecc69700c7cdeb1fa9e129548e1c1c393c"
+  version = "v0.1.1"
 
 [[projects]]
   name = "github.com/stretchr/testify"
-  packages = ["assert","mock"]
-  revision = "12b6f73e6084dad08a7c6e575284b177ecafbc71"
-  version = "v1.2.1"
+  packages = [
+    "assert",
+    "mock"
+  ]
+  revision = "f35b8ab0b5a2cef36673838d662e249dd9c94686"
+  version = "v1.2.2"
 
 [[projects]]
   branch = "master"
   name = "golang.org/x/net"
-  packages = ["context","context/ctxhttp"]
-  revision = "2fb46b16b8dda405028c50f7c7f0f9dd1fa6bfb1"
+  packages = [
+    "context",
+    "context/ctxhttp"
+  ]
+  revision = "039a4258aec0ad3c79b905677cceeab13b296a77"
 
 [[projects]]
   branch = "master"
   name = "golang.org/x/oauth2"
-  packages = [".","clientcredentials","internal"]
-  revision = "a032972e28060ca4f5644acffae3dfc268cc09db"
+  packages = [
+    ".",
+    "clientcredentials",
+    "internal"
+  ]
+  revision = "ef147856a6ddbb60760db74283d2424e98c87bff"
 
 [[projects]]
   name = "google.golang.org/appengine"
-  packages = ["internal","internal/base","internal/datastore","internal/log","internal/remote_api","internal/urlfetch","urlfetch"]
-  revision = "150dc57a1b433e64154302bdc40b6bb8aefa313a"
-  version = "v1.0.0"
+  packages = [
+    "internal",
+    "internal/base",
+    "internal/datastore",
+    "internal/log",
+    "internal/remote_api",
+    "internal/urlfetch",
+    "urlfetch"
+  ]
+  revision = "b1f26356af11148e710935ed1ac8a7f5702c7612"
+  version = "v1.1.0"
 
 [[projects]]
-  branch = "v2"
   name = "gopkg.in/yaml.v2"
   packages = ["."]
-  revision = "d670f9405373e636a5a2765eea47fac0c9bc91a4"
+  revision = "5420a8b6744d3b0345ab293f6fcba19c978f1183"
+  version = "v2.2.1"
 
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "c2e1dc96c600e52f83de05589aafb9e320910ea14dd0bd6c32750e4bc065875a"
+  inputs-digest = "7e83e1cde2386eb3fcf554be1acbd216b3b7cb08f354c5c23239cab1c2a328af"
   solver-name = "gps-cdcl"
   solver-version = 1

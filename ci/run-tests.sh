@@ -1,12 +1,14 @@
-#!/bin/sh
+#!/bin/bash
 
-set -e -x
+set -ex
 
 export GOPATH=$(pwd)/gopath
 export PATH=$PATH:/$GOPATH/bin
+mkdir -p ${GOPATH}/bin
 
-go get -u github.com/golang/dep/cmd/dep
+curl https://raw.githubusercontent.com/golang/dep/master/install.sh | sh
 
-cd gopath/src/github.com/18F/cg-buildpack-notify
-dep ensure
-go test -v $(go list ./... | grep -v /vendor/)
+pushd gopath/src/github.com/18F/cg-buildpack-notify
+  dep ensure
+  go test -v $(go list ./... | grep -v /vendor/)
+popd
