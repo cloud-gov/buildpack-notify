@@ -26,7 +26,7 @@ the following commands:
 {{end -}}
 
 {{range .Apps}}
-  cf target -o {{ .SpaceData.Entity.OrgData.Entity.Name }} -s {{ .SpaceData.Entity.Name }} ; cf restage {{.Name}}
+  cf target -o {{ .SpaceData.Entity.OrgData.Entity.Name }} -s {{ .SpaceData.Entity.Name }} ; cf restage --strategy rolling {{.Name}}
 {{end}}
 
 For more information about the buildpack update(s), please see the following release notes:
