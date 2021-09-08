@@ -11,7 +11,7 @@ export OUT_STATE="$(pwd)/${OUT_STATE}"
 
 curl https://raw.githubusercontent.com/golang/dep/master/install.sh | sh
 
-pushd gopath/src/github.com/18F/cg-buildpack-notify
+pushd gopath/src/github.com/cloud-gov/cg-buildpack-notify
   dep ensure
   go build
   ./cg-buildpack-notify

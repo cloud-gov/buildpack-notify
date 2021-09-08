@@ -9,7 +9,7 @@ image_resource:
 
 inputs:
 - name: notify-src
-  path: gopath/src/github.com/18F/cg-buildpack-notify
+  path: gopath/src/github.com/cloud-gov/cg-buildpack-notify
 
 run:
-  path: gopath/src/github.com/18F/cg-buildpack-notify/ci/run-tests.sh
+  path: gopath/src/github.com/cloud-gov/cg-buildpack-notify/ci/run-tests.sh
