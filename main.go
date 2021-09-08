@@ -10,6 +10,7 @@ import (
 	"net/mail"
 	"net/url"
 	"os"
+	"regexp"
 	"strings"
 	"time"
 
@@ -93,8 +94,21 @@ func parseBuildpackVersion(buildpackFileName string) string {
 
 func getBuildpackVersionURL(buildpackReleaseURL string, buildpackVersion string) string {
 	// Takes a buildpack version and appends it to a URL to create a specific
-	// release URL.
-	return buildpackReleaseURL + "/tag/" + buildpackVersion
+	// release URL.  If the version isn't correct, fall back to the main
+	// releases URL.
+	buildpackVersionURL := buildpackReleaseURL
+	buildpackVersionPath := "/tag/"
+
+	// Check to make sure that the buildpackVersion matches the format of
+	// vX.Y[.Z], e.g.: v1.7.43 or v1.6
+	versionRe := regexp.MustCompile(`^v[0-9]+\.[0-9]+(\.[0-9]+)?$`)
+	versionMatch := versionRe.FindAllString(buildpackVersion, -1)
+
+	if versionMatch != nil {
+		buildpackVersionURL = buildpackReleaseURL + buildpackVersionPath + buildpackVersion
+	}
+
+	return buildpackVersionURL
 }
 
 func loadState(path string) (map[string]buildpackRecord, error) {

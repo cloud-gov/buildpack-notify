@@ -90,6 +90,24 @@ func TestBuildpackVersionURL(t *testing.T) {
 	}
 }
 
+func TestBuildpackVersionURLWithBadVersion(t *testing.T) {
+	testBuildpackReleaseURL := "https://github.com/cloudfoundry/python-buildpack/releases"
+	testBuildpackVersionMissingV := "7.5"
+	testBuildpackVersionDifferentFormat := "x.321.y.323"
+	expectedVersionURL := "https://github.com/cloudfoundry/python-buildpack/releases"
+
+	buildpackVersionURL1 := getBuildpackVersionURL(testBuildpackReleaseURL, testBuildpackVersionMissingV)
+	buildpackVersionURL2 := getBuildpackVersionURL(testBuildpackReleaseURL, testBuildpackVersionDifferentFormat)
+
+	if buildpackVersionURL1 != expectedVersionURL {
+		t.Errorf("The buildpack version URL for %s (%s) was not built correctly; expected %s", testBuildpackReleaseURL, testBuildpackVersionMissingV, expectedVersionURL)
+	}
+
+	if buildpackVersionURL2 != expectedVersionURL {
+		t.Errorf("The buildpack version URL for %s (%s) was not built correctly; expected %s", testBuildpackReleaseURL, testBuildpackVersionDifferentFormat, expectedVersionURL)
+	}
+}
+
 type spaceSpec struct {
 	space      cfclient.SpaceResource
 	spaceRoles cfclient.SpaceRoleResponse
