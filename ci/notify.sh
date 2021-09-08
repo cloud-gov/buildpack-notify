@@ -13,6 +13,7 @@ curl https://raw.githubusercontent.com/golang/dep/master/install.sh | sh
 
 pushd gopath/src/github.com/cloud-gov/cg-buildpack-notify
   dep ensure
+  go mod vendor
   go build
   ./cg-buildpack-notify
 popd
