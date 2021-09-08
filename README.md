@@ -41,8 +41,8 @@ that you add the client to your Cloud Foundry deployment YAML for production.
 
 ### Requirements
 
-- Go v1.8+
-- PCFDev
+- Go v1.17+
+- PCFDev (optional)
 - Docker & Docker-Compose (for integration tests)
 
 ### Setup
