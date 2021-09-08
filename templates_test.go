@@ -12,6 +12,25 @@ import (
 
 func TestGetNotifyEmail(t *testing.T) {
 	rootDataPath := filepath.Join("testdata", "mail", "notify")
+	updatedBuildpacksSingleApp := []buildpackReleaseInfo{
+		{
+			"python_buildpack",
+			"v1.7.43",
+			"https://github.com/cloudfoundry/python-buildpack/releases/tags/v1.7.43",
+		},
+	}
+	updatedBuildpacksMultipleApps := []buildpackReleaseInfo{
+		{
+			"python_buildpack",
+			"v1.7.43",
+			"https://github.com/cloudfoundry/python-buildpack/releases/tags/v1.7.43",
+		},
+		{
+			"ruby_buildpack",
+			"v1.8.43",
+			"https://github.com/cloudfoundry/ruby-buildpack/releases/tags/v1.8.43",
+		},
+	}
 	testCases := []struct {
 		name          string
 		email         notifyEmail
@@ -23,7 +42,7 @@ func TestGetNotifyEmail(t *testing.T) {
 				SpaceData: cfclient.SpaceResource{Entity: cfclient.Space{Name: "dev",
 					OrgData: cfclient.OrgResource{Entity: cfclient.Org{Name: "sandbox"}},
 				}},
-			}}, false},
+			}}, false, updatedBuildpacksSingleApp},
 			filepath.Join(rootDataPath, "single_app.txt"),
 		},
 		{
@@ -39,7 +58,7 @@ func TestGetNotifyEmail(t *testing.T) {
 						OrgData: cfclient.OrgResource{Entity: cfclient.Org{Name: "paid-org"}},
 					}},
 				},
-			}, true},
+			}, true, updatedBuildpacksMultipleApps},
 			filepath.Join(rootDataPath, "multiple_apps.txt"),
 		},
 	}

@@ -33,6 +33,63 @@ func TestSpaceUserHasRoles(t *testing.T) {
 	}
 }
 
+func TestBuildPackURLIsReturnedForSystemBuildPacks(t *testing.T) {
+	testBuildPackNames := []string{
+		"staticfile_buildpack",
+		"java_buildpack",
+		"ruby_buildpack",
+		"dotnet_core_buildpack",
+		"nodejs_buildpack",
+		"go_buildpack",
+		"python_buildpack",
+		"php_buildpack",
+		"binary_buildpack",
+		"nginx_buildpack",
+		"r_buildpack",
+	}
+
+	for _, testBuildPackName := range testBuildPackNames {
+		testBuildPackURL := getBuildpackReleaseURL(testBuildPackName)
+
+		if testBuildPackURL == "" {
+			t.Errorf("Finding the buildpack URL failed for %s.", testBuildPackName)
+		}
+	}
+}
+
+func TestEmptyStringReturnedForUnknownBuildpack(t *testing.T) {
+	testBuildpackName := "my_fake_buildpack"
+
+	testBuildpackURL := getBuildpackReleaseURL(testBuildpackName)
+
+	if testBuildpackURL != "" {
+		t.Errorf("The buildpack %s should not have mapped to a URL.", testBuildpackName)
+	}
+}
+
+func TestParseBuildpackVersion(t *testing.T) {
+	testBuildpackFileName := "python_buildpack-cflinuxfs3-v1.7.43.zip"
+	expectedBuildpackVersion := "v1.7.43"
+
+	buildpackVersion := parseBuildpackVersion(testBuildpackFileName)
+
+	if buildpackVersion != expectedBuildpackVersion {
+		t.Errorf("The buildpack version for %s was not parsed correctly; expected %s", testBuildpackFileName, expectedBuildpackVersion)
+	}
+}
+
+func TestBuildpackVersionURL(t *testing.T) {
+	testBuildpackReleaseURL := "https://github.com/cloudfoundry/python-buildpack/releases"
+	testBuildpackVersion := "v1.7.43"
+	expectedVersionURL := "https://github.com/cloudfoundry/python-buildpack/releases/tag/v1.7.43"
+
+	buildpackVersionURL := getBuildpackVersionURL(testBuildpackReleaseURL, testBuildpackVersion)
+
+	if buildpackVersionURL != expectedVersionURL {
+		t.Errorf("The buildpack version URL for %s (%s) was not built correctly; expected %s", testBuildpackReleaseURL, testBuildpackVersion, expectedVersionURL)
+	}
+}
+
 type spaceSpec struct {
 	space      cfclient.SpaceResource
 	spaceRoles cfclient.SpaceRoleResponse
@@ -240,6 +297,24 @@ type testNotifyEmail struct {
 }
 
 func TestSendNotifyEmailToUsers(t *testing.T) {
+	updatedBuildpacks := []buildpackReleaseInfo{
+		{
+			"java_buildpack",
+			"v4.41",
+			"https://github.com/cloudfoundry/java-buildpack/releases/tags/v4.41",
+		},
+		{
+			"python_buildpack",
+			"v1.7.43",
+			"https://github.com/cloudfoundry/python-buildpack/releases/tags/v1.7.43",
+		},
+		{
+			"ruby_buildpack",
+			"v1.8.43",
+			"https://github.com/cloudfoundry/ruby-buildpack/releases/tags/v1.8.43",
+		},
+	}
+
 	testCases := []struct {
 		name          string
 		usersAndApps  map[string][]cfclient.App
@@ -260,6 +335,7 @@ func TestSendNotifyEmailToUsers(t *testing.T) {
 							{Name: "testapp"},
 						},
 						false,
+						updatedBuildpacks,
 					},
 					"Action required: restage your application",
 				},
@@ -282,6 +358,7 @@ func TestSendNotifyEmailToUsers(t *testing.T) {
 							{Name: "testapp2"},
 						},
 						true,
+						updatedBuildpacks,
 					},
 					"Action required: restage your applications",
 				},
@@ -305,6 +382,7 @@ func TestSendNotifyEmailToUsers(t *testing.T) {
 							{Name: "testapp1"},
 						},
 						false,
+						updatedBuildpacks,
 					},
 					"Action required: restage your application",
 				},
@@ -315,6 +393,7 @@ func TestSendNotifyEmailToUsers(t *testing.T) {
 							{Name: "testapp2"},
 						},
 						false,
+						updatedBuildpacks,
 					},
 					"Action required: restage your application",
 				},
@@ -341,6 +420,7 @@ func TestSendNotifyEmailToUsers(t *testing.T) {
 							{Name: "testapp2"},
 						},
 						true,
+						updatedBuildpacks,
 					},
 					"Action required: restage your applications",
 				},
@@ -352,18 +432,20 @@ func TestSendNotifyEmailToUsers(t *testing.T) {
 							{Name: "testapp4"},
 						},
 						true,
+						updatedBuildpacks,
 					},
 					"Action required: restage your applications",
 				},
 			},
 		},
 	}
+
 	for _, tc := range testCases {
 		templates, _ := initTemplates()
 		t.Run(tc.name, func(t *testing.T) {
 			mockMailer := new(mocks.Mailer)
 			mockMailer.On("SendEmail", mock.Anything, mock.Anything, mock.Anything).Return(nil)
-			sendNotifyEmailToUsers(tc.usersAndApps, templates, mockMailer, false)
+			sendNotifyEmailToUsers(tc.usersAndApps, updatedBuildpacks, templates, mockMailer, false)
 			if !mockMailer.AssertNumberOfCalls(t, "SendEmail", len(tc.expectedCalls)) {
 				t.Errorf("Did not call send e-mail the number of expected times")
 				t.Log(len(mockMailer.Calls))
