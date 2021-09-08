@@ -10,5 +10,6 @@ curl https://raw.githubusercontent.com/golang/dep/master/install.sh | sh
 
 pushd gopath/src/github.com/cloud-gov/cg-buildpack-notify
   dep ensure
+  go mod vendor
   go test -v $(go list ./... | grep -v /vendor/)
 popd
