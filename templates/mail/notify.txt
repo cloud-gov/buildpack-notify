@@ -12,7 +12,7 @@ upgrade, but causes downtime so you may want to leverage your deployment infastr
 if you have set up zero-downtime deploys.
 
 You can restage your applications by opening the command line and entering 
-the following commands.
+the following commands:
 {{else}}
 We recently updated the buildpack in use by your application. You should 
 restage or redeploy your application to take advantage of the update.
@@ -27,6 +27,11 @@ the following commands:
 
 {{range .Apps}}
   cf target -o {{ .SpaceData.Entity.OrgData.Entity.Name }} -s {{ .SpaceData.Entity.Name }} ; cf restage {{.Name}}
+{{end}}
+
+For more information about the buildpack update(s), please see the following release notes:
+{{range .Buildpacks}}
+  {{ .BuildpackName }} {{ .BuildpackVersion }}: {{ .BuildpackURL }}
 {{end}}
 
 For more information on keeping your application updated and secure, see: 

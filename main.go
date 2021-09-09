@@ -10,6 +10,8 @@ import (
 	"net/mail"
 	"net/url"
 	"os"
+	"regexp"
+	"strings"
 	"time"
 
 	"github.com/cloudfoundry-community/go-cfclient"
@@ -41,6 +43,72 @@ type CFAPIConfig struct {
 
 type buildpackRecord struct {
 	LastUpdatedAt string
+}
+
+type buildpackReleaseInfo struct {
+	BuildpackName    string
+	BuildpackVersion string
+	BuildpackURL     string
+}
+
+func getBuildpackReleaseURL(buildpackName string) string {
+	// Returns the release notes page for a given buildpack; if the buildpack is
+	// not found, returns an empty string.
+
+	// Map of all supported system buildpack releases in Cloud Foundry.
+	buildpackReleaseURLs := map[string]string{
+		"staticfile_buildpack":  "https://github.com/cloudfoundry/staticfile-buildpack/releases",
+		"java_buildpack":        "https://github.com/cloudfoundry/java-buildpack/releases",
+		"ruby_buildpack":        "https://github.com/cloudfoundry/ruby-buildpack/releases",
+		"dotnet_core_buildpack": "https://github.com/cloudfoundry/dotnet-core-buildpack/releases",
+		"nodejs_buildpack":      "https://github.com/cloudfoundry/nodejs-buildpack/releases",
+		"go_buildpack":          "https://github.com/cloudfoundry/go-buildpack/releases",
+		"python_buildpack":      "https://github.com/cloudfoundry/python-buildpack/releases",
+		"php_buildpack":         "https://github.com/cloudfoundry/php-buildpack/releases",
+		"binary_buildpack":      "https://github.com/cloudfoundry/binary-buildpack/releases",
+		"nginx_buildpack":       "https://github.com/cloudfoundry/nginx-buildpack/releases",
+		"r_buildpack":           "https://github.com/cloudfoundry/r-buildpack/releases",
+	}
+
+	// Note that for a specific release, you'll need to append
+	// /tag/<version_number> at the end, e.g.,
+	// https://github.com/cloudfoundry/python-buildpack/releases/tag/v1.7.45
+	// for the Python buildpack.
+
+	if buildpackReleaseURL, ok := buildpackReleaseURLs[buildpackName]; ok {
+		return buildpackReleaseURL
+	}
+
+	return ""
+}
+
+func parseBuildpackVersion(buildpackFileName string) string {
+	// Takes a buildpack file name and parses out the version number from it.
+	// Buildpack filenames currently look like this: python_buildpack-cflinuxfs3-v1.7.43.zip
+	// "v1.7.43" is the version in this case.
+
+	fileNameParts := strings.Split(buildpackFileName, "-")
+	buildpackVersion := strings.ReplaceAll(fileNameParts[2], ".zip", "")
+	return buildpackVersion
+}
+
+func getBuildpackVersionURL(buildpackReleaseURL string, buildpackVersion string) string {
+	// Takes a buildpack version and appends it to a URL to create a specific
+	// release URL.  If the version isn't correct, fall back to the main
+	// releases URL.
+	buildpackVersionURL := buildpackReleaseURL
+	buildpackVersionPath := "/tag/"
+
+	// Check to make sure that the buildpackVersion matches the format of
+	// vX.Y[.Z], e.g.: v1.7.43 or v1.6
+	versionRe := regexp.MustCompile(`^v[0-9]+\.[0-9]+(\.[0-9]+)?$`)
+	versionMatch := versionRe.FindAllString(buildpackVersion, -1)
+
+	if versionMatch != nil {
+		buildpackVersionURL = buildpackReleaseURL + buildpackVersionPath + buildpackVersion
+	}
+
+	return buildpackVersionURL
 }
 
 func loadState(path string) (map[string]buildpackRecord, error) {
@@ -125,11 +193,11 @@ func main() {
 	log.Println("Calculating notifications to send for outdated buildpacks.")
 	mailer := InitSMTPMailer(emailConfig)
 	apps, buildpacks, state := getAppsAndBuildpacks(client, state)
-	outdatedApps := findOutdatedApps(client, apps, buildpacks)
+	outdatedApps, updatedBuildpacks := findOutdatedApps(client, apps, buildpacks)
 	outdatedV2Apps := convertToV2Apps(client, outdatedApps)
 	owners := findOwnersOfApps(outdatedV2Apps, client)
 	log.Printf("Will notify %d owners of outdated apps.\n", len(owners))
-	sendNotifyEmailToUsers(owners, templates, mailer, config.DryRun)
+	sendNotifyEmailToUsers(owners, updatedBuildpacks, templates, mailer, config.DryRun)
 
 	if config.DryRun {
 		if err := copyState(config.InState, config.OutState); err != nil {
@@ -341,7 +409,7 @@ func getCurrentDropletForApp(app App, client *cfclient.Client) (Droplet, bool) {
 	return droplets[0], true
 }
 
-func findOutdatedApps(client *cfclient.Client, apps []App, buildpacks map[string]cfclient.Buildpack) (outdatedApps []App) {
+func findOutdatedApps(client *cfclient.Client, apps []App, buildpacks map[string]cfclient.Buildpack) (outdatedApps []App, updatedBuildpacks []buildpackReleaseInfo) {
 	for _, app := range apps {
 		if app.State != "STARTED" {
 			log.Printf("App %s guid %s not in STARTED state\n", app.Name, app.GUID)
@@ -361,6 +429,20 @@ func findOutdatedApps(client *cfclient.Client, apps []App, buildpacks map[string
 		if appIsOutdated := isDropletUsingOutdatedBuildpack(client, droplet, buildpack); !appIsOutdated {
 			log.Printf("App %s Guid %s | Buildpack %s not outdated\n", app.Name, app.GUID, buildpack.Name)
 			continue
+		} else {
+			// If the app is using an outdated buildpack, get the buildpack information to pass along to the user.
+			log.Printf("App %s Guid %s | Buildpack %s is outdated\n", app.Name, app.GUID, buildpack.Name)
+			buildpackReleaseURL := getBuildpackReleaseURL(buildpack.Name)
+			buildpackVersion := parseBuildpackVersion(buildpack.Filename)
+			buildpackVersionURL := getBuildpackVersionURL(buildpackReleaseURL, buildpackVersion)
+
+			updatedBuildpack := buildpackReleaseInfo{
+				BuildpackName:    buildpack.Name,
+				BuildpackVersion: buildpackVersion,
+				BuildpackURL:     buildpackVersionURL,
+			}
+
+			updatedBuildpacks = append(updatedBuildpacks, updatedBuildpack)
 		}
 		outdatedApps = append(outdatedApps, app)
 	}
@@ -376,7 +458,7 @@ func spaceUserHasRoles(user cfclient.SpaceRole, roles map[string]bool) bool {
 	return false
 }
 
-func sendNotifyEmailToUsers(users map[string][]cfclient.App, templates *Templates, mailer Mailer, dryRun bool) {
+func sendNotifyEmailToUsers(users map[string][]cfclient.App, updatedBuildpacks []buildpackReleaseInfo, templates *Templates, mailer Mailer, dryRun bool) {
 	for user, apps := range users {
 		// Create buffer
 		body := new(bytes.Buffer)
@@ -386,7 +468,7 @@ func sendNotifyEmailToUsers(users map[string][]cfclient.App, templates *Template
 			isMultipleApp = true
 		}
 		// Fill buffer with completed e-mail
-		templates.getNotifyEmail(body, notifyEmail{user, apps, isMultipleApp})
+		templates.getNotifyEmail(body, notifyEmail{user, apps, isMultipleApp, updatedBuildpacks})
 		// Send email
 		if !dryRun {
 			subj := "Action required: restage your application"

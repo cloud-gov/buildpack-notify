@@ -4,17 +4,17 @@ image_resource:
   type: docker-image
   source:
     repository: golang
-    tag: "1.9"
+    tag: "1.17"
 
 inputs:
 - name: notify-src
-  path: gopath/src/github.com/18F/cg-buildpack-notify
+  path: gopath/src/github.com/cloud-gov/cg-buildpack-notify
 - name: state
 outputs:
 - name: out-state
 
 run:
-  path: gopath/src/github.com/18F/cg-buildpack-notify/ci/notify.sh
+  path: gopath/src/github.com/cloud-gov/cg-buildpack-notify/ci/notify.sh
 
 params:
   IN_STATE:

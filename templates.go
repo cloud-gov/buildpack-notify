@@ -55,6 +55,7 @@ type notifyEmail struct {
 	Username      string
 	Apps          []cfclient.App
 	IsMultipleApp bool
+	Buildpacks    []buildpackReleaseInfo
 }
 
 // getNotifyEmail gets the filled in notify email template.
