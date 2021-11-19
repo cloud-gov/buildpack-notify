@@ -78,6 +78,17 @@ func TestParseBuildpackVersion(t *testing.T) {
 	}
 }
 
+func TestParseBuildpackVersionMoreDashes(t *testing.T) {
+	testBuildpackFileName := "php-buildpack-cflinuxfs3-v4.4.49.zip"
+	expectedBuildpackVersion := "v4.4.49"
+
+	buildpackVersion := parseBuildpackVersion(testBuildpackFileName)
+
+	if buildpackVersion != expectedBuildpackVersion {
+		t.Errorf("The buildpack version for %s was not parsed correctly; expected %s", testBuildpackFileName, expectedBuildpackVersion)
+	}
+}
+
 func TestBuildpackVersionURL(t *testing.T) {
 	testBuildpackReleaseURL := "https://github.com/cloudfoundry/python-buildpack/releases"
 	testBuildpackVersion := "v1.7.43"

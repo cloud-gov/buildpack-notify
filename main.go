@@ -88,7 +88,7 @@ func parseBuildpackVersion(buildpackFileName string) string {
 	// "v1.7.43" is the version in this case.
 
 	fileNameParts := strings.Split(buildpackFileName, "-")
-	buildpackVersion := strings.ReplaceAll(fileNameParts[2], ".zip", "")
+	buildpackVersion := strings.ReplaceAll(fileNameParts[len(fileNameParts)-1], ".zip", "")
 	return buildpackVersion
 }
 
