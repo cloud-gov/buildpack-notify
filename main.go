@@ -88,7 +88,7 @@ func parseBuildpackVersion(buildpackFileName string) string {
 	// "v1.7.43" is the version in this case.
 
 	fileNameParts := strings.Split(buildpackFileName, "-")
-	buildpackVersion := strings.ReplaceAll(fileNameParts[2], ".zip", "")
+	buildpackVersion := strings.ReplaceAll(fileNameParts[len(fileNameParts)-1], ".zip", "")
 	return buildpackVersion
 }
 
@@ -197,6 +197,7 @@ func main() {
 	outdatedV2Apps := convertToV2Apps(client, outdatedApps)
 	owners := findOwnersOfApps(outdatedV2Apps, client)
 	log.Printf("Will notify %d owners of outdated apps.\n", len(owners))
+	updatedBuildpacks = deduplicateBuildpacks(updatedBuildpacks)
 	sendNotifyEmailToUsers(owners, updatedBuildpacks, templates, mailer, config.DryRun)
 
 	if config.DryRun {
@@ -283,6 +284,18 @@ func getAppsAndBuildpacks(client *cfclient.Client, state map[string]buildpackRec
 		buildpacks[buildpack.Name] = buildpack
 	}
 	return apps, buildpacks, state
+}
+
+func deduplicateBuildpacks(allBuildpacks []buildpackReleaseInfo) []buildpackReleaseInfo {
+	keys := make(map[buildpackReleaseInfo]bool)
+	deduplicated := []buildpackReleaseInfo{}
+	for _, entry := range allBuildpacks {
+		if _, value := keys[entry]; !value {
+			keys[entry] = true
+			deduplicated = append(deduplicated, entry)
+		}
+	}
+	return deduplicated
 }
 
 // isDropletUsingSupportedBuildpack checks the buildpacks the droplet is using and comparing to see if one of them
