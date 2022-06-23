@@ -14,9 +14,9 @@ if you have set up zero-downtime deploys.
 You can restage your applications by opening the command line and entering 
 the following commands:
 
-  cf target -o sandbox -s dev ; cf restage my-drupal-app
+  cf target -o sandbox -s dev ; cf restage --strategy rolling my-drupal-app
 
-  cf target -o paid-org -s staging ; cf restage my-wordpress-app
+  cf target -o paid-org -s staging ; cf restage --strategy rolling my-wordpress-app
 
 
 For more information about the buildpack update(s), please see the following release notes:
