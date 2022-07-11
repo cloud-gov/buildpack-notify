@@ -8,7 +8,7 @@ We recently updated the buildpack in use by your application. You should
 restage or redeploy your application to take advantage of the update.
 
 Keep in mind that restaging is the quickest way to
-upgrade, but causes downtime so you may want to leverage your deployment infastructure
+upgrade, but causes downtime so you may want to leverage your deployment infrastructure
 if you have set up zero-downtime deploys.
 
 You can restage your application by opening the command line and entering 
