@@ -25,6 +25,7 @@ resources:
   source:
     uri: ((cg-buildpack-notify-git-uri))
     branch: ((cg-buildpack-notify-git-branch))
+    commit_verification_keys: ((cloud-gov-pgp-keys))
 
 - name: pull-request
   type: pull-request
