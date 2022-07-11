@@ -14,7 +14,12 @@ if you have set up zero-downtime deploys.
 You can restage your application by opening the command line and entering 
 the following commands:
 
-  cf target -o sandbox -s dev ; cf restage my-drupal-app
+  cf target -o sandbox -s dev ; cf restage --strategy rolling my-drupal-app
+
+
+For more information about the buildpack update(s), please see the following release notes:
+
+  python_buildpack v1.7.43: https://github.com/cloudfoundry/python-buildpack/releases/tags/v1.7.43
 
 
 For more information on keeping your application updated and secure, see: 

@@ -41,9 +41,8 @@ that you add the client to your Cloud Foundry deployment YAML for production.
 
 ### Requirements
 
-- Go v1.8+
-- PCFDev
-- Glide
+- Go v1.17+
+- PCFDev (optional)
 - Docker & Docker-Compose (for integration tests)
 
 ### Setup
@@ -51,7 +50,7 @@ that you add the client to your Cloud Foundry deployment YAML for production.
 1. Download Go dependencies
 
 ```sh
-glide install
+go get
 ```
 
 2. Setup UAA Client on PCFDev's UAA
