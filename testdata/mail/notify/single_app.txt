@@ -7,9 +7,9 @@ often include security fixes.
 We recently updated the buildpack in use by your application. You should 
 restage or redeploy your application to take advantage of the update.
 
-Keep in mind that restaging is the quickest way to
-upgrade, but causes downtime so you may want to leverage your deployment infrastructure
-if you have set up zero-downtime deploys.
+A rolling restage operation is the quickest way to upgrade without incurring
+downtime. You may still want to leverage your deployment infrastructure to
+perform the upgrade if you have compliance requirements for redeployment operations.
 
 You can restage your application by opening the command line and entering 
 the following commands:
