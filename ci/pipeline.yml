@@ -30,7 +30,7 @@ resources:
 - name: pull-request
   type: pull-request
   source:
-    repo: ((cg-buildpack-notify-github-repo-name))
+    repository: ((cg-buildpack-notify-github-repo-name))
     access_token: ((status-access-token))
     disable_forks: true
     every: true
