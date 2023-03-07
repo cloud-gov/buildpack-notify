@@ -33,7 +33,6 @@ resources:
     repository: ((cg-buildpack-notify-github-repo-name))
     access_token: ((status-access-token))
     disable_forks: true
-    every: true
 
 - name: state-staging
   type: s3-iam
