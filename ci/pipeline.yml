@@ -1,18 +1,39 @@
 resource_types:
-- name: pull-request
-  type: docker-image
+- name: registry-image
+  type: registry-image
   source:
-    repository: teliaoss/github-pr-resource
+    aws_access_key_id: ((ecr_aws_key))
+    aws_secret_access_key: ((ecr_aws_secret))
+    repository: registry-image-resource
+    aws_region: us-gov-west-1
+    tag: latest
+
+- name: pull-request
+  type: registry-image
+  source:
+    aws_access_key_id: ((ecr_aws_key))
+    aws_secret_access_key: ((ecr_aws_secret))
+    repository: github-pr-resource
+    aws_region: us-gov-west-1
+    tag: latest
 
 - name: s3-iam
-  type: docker-image
+  type: registry-image
   source:
-    repository: 18fgsa/s3-resource
+    aws_access_key_id: ((ecr_aws_key))
+    aws_secret_access_key: ((ecr_aws_secret))
+    repository: s3-resource
+    aws_region: us-gov-west-1
+    tag: latest
 
 - name: slack-notification
-  type: docker-image
+  type: registry-image
   source:
-    repository: cfcommunity/slack-notification-resource
+    aws_access_key_id: ((ecr_aws_key))
+    aws_secret_access_key: ((ecr_aws_secret))
+    repository: slack-notification-resource
+    aws_region: us-gov-west-1
+    tag: latest
 
 resources:
 - name: check-buildpack-updates
@@ -55,6 +76,15 @@ resources:
   source:
     url: ((slack-webhook-url))
 
+- name: general-task
+  type: registry-image
+  source:
+    aws_access_key_id: ((ecr_aws_key))
+    aws_secret_access_key: ((ecr_aws_secret))
+    repository: general-task
+    aws_region: us-gov-west-1
+    tag: latest
+
 jobs:
 - name: pull-status-check
   plan:
@@ -82,13 +112,16 @@ jobs:
 
 - name: test-cg-buildpack-notify
   plan:
+  - get: general-task
   - get: notify-src
     trigger: true
   - task: run-tests
+    image: general-task
     file: notify-src/ci/run-tests.yml
 
 - name: notify-customers-staging
   plan:
+  - get: general-task
   - get: check-buildpack-updates
     trigger: true
   - get: notify-src
@@ -96,6 +129,7 @@ jobs:
   - get: state
     resource: state-staging
   - task: do-notify
+    image: general-task
     file: notify-src/ci/notify.yml
     params:
       IN_STATE: state/state.json
@@ -125,6 +159,7 @@ jobs:
 
 - name: notify-customers-production
   plan:
+  - get: general-task
   - get: check-buildpack-updates
     trigger: true
   - get: notify-src
@@ -132,6 +167,7 @@ jobs:
   - get: state
     resource: state-production
   - task: do-notify
+    image: general-task
     file: notify-src/ci/notify.yml
     params:
       IN_STATE: state/state.json
