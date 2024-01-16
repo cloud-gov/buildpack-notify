@@ -4,7 +4,7 @@ Encouraging cloud foundry customers to restage their apps so they can benefit fr
 
 ---
 
-## Notification logic
+## Notification logic 
 
 The application will look at all the system buildpacks (i.e. result of `cf buildpacks`) and look at the time stamp of
 when it was last updated. It will find all the applications using the system buildpacks and look at the last updated
