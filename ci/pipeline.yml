@@ -88,6 +88,7 @@ resources:
 jobs:
 - name: pull-status-check
   plan:
+  - get: general-task
   - get: pull-request
     version: every
     trigger: true
@@ -96,6 +97,7 @@ jobs:
       path: pull-request
       status: pending
   - task: build
+    image: general-task
     file: pull-request/ci/run-tests.yml
     input_mapping:
       notify-src: pull-request
