@@ -39,7 +39,7 @@ cf delete-buildpack $BUILDPACK_NAME -f
 # Create buildpack
 cf create-buildpack $BUILDPACK_NAME $BUILDPACK_VERSION_1_ZIP 100 --enable
 
-pushd app || exit
+pushd app || exit 1
 
   # build the app
   make
@@ -63,7 +63,7 @@ pushd app || exit
     else
       echo "base case success. shouldn't find any users."
     fi
-  popd || exit
+  popd || exit 1
 
   # update the buildpack
   cf update-buildpack $BUILDPACK_NAME -p $BUILDPACK_VERSION_2_ZIP -i 100 --enable
@@ -84,7 +84,7 @@ pushd app || exit
       echo "didn't send e-mail to user $TEST_USER"
       RET=1
     fi
-  popd || exit
+  popd || exit 1
 
   # deploy the app again
   cf restage dummy-app
@@ -105,8 +105,8 @@ pushd app || exit
     else
       echo "after update case success. shouldn't find any users."
     fi
-  popd || exit
-popd || exit
+  popd || exit 1
+popd || exit 1
 
 # clean up the app
 cf delete dummy-app -f
