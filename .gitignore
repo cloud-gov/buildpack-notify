@@ -6,3 +6,4 @@ credentials.yml
 !*example.json
 vendor/
 ci/*.lock
+**/bin/dummy-app
