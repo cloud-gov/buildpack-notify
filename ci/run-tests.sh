@@ -2,14 +2,12 @@
 
 set -ex
 
-export GOPATH=$(pwd)/gopath
+GOPATH=$(pwd)/gopath
+export GOPATH
 export PATH=$PATH:/$GOPATH/bin
-mkdir -p ${GOPATH}/bin
-
-curl https://raw.githubusercontent.com/golang/dep/master/install.sh | sh
+mkdir -p "${GOPATH}/bin"
 
 pushd gopath/src/github.com/cloud-gov/cg-buildpack-notify
-  dep ensure
   go mod vendor
-  go test -v $(go list ./... | grep -v /vendor/)
+  go test -v
 popd
