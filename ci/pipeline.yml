@@ -80,6 +80,7 @@ resources:
     versioned_file: state.json
     region_name: ((state-aws-region-staging))
     server_side_encryption: AES256
+    endpoint: s3-fips.((aws-region)).amazonaws.com
 
 - name: state-production
   type: s3-iam
@@ -88,6 +89,7 @@ resources:
     versioned_file: state.json
     region_name: ((state-aws-region-production))
     server_side_encryption: AES256
+    endpoint: s3-fips.((aws-region)).amazonaws.com
 
 - name: slack
   type: slack-notification
