@@ -13,8 +13,8 @@ OUT_STATE="$(pwd)/${OUT_STATE}"
 export IN_STATE
 export OUT_STATE
 
-pushd gopath/src/github.com/cloud-gov/cg-buildpack-notify
+pushd gopath/src/github.com/cloud-gov/buildpack-notify
   go mod vendor
   go build
-  ./cg-buildpack-notify
+  ./buildpack-notify
 popd

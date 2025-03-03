@@ -2,13 +2,13 @@ platform: linux
 
 inputs:
 - name: notify-src
-  path: gopath/src/github.com/cloud-gov/cg-buildpack-notify
+  path: gopath/src/github.com/cloud-gov/buildpack-notify
 - name: state
 outputs:
 - name: out-state
 
 run:
-  path: gopath/src/github.com/cloud-gov/cg-buildpack-notify/ci/notify.sh
+  path: gopath/src/github.com/cloud-gov/buildpack-notify/ci/notify.sh
 
 params:
   IN_STATE:
