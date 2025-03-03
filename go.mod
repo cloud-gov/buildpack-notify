@@ -1,9 +1,8 @@
-module github.com/cloud-gov/cg-buildpack-notify
+module github.com/cloud-gov/buildpack-notify
 
 go 1.17
 
 require (
-	github.com/18F/cg-buildpack-notify v0.0.0-20200205001142-c4fdc52e261e
 	github.com/cloudfoundry-community/go-cfclient v0.0.0-20180710134401-c9b465ea2cf0
 	github.com/jordan-wright/email v0.0.0-20180115032944-94ae17dedda2
 	github.com/kelseyhightower/envconfig v1.3.0
