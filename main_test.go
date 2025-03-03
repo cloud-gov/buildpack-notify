@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/18F/cg-buildpack-notify/mocks"
+	"github.com/cloud-gov/buildpack-notify/mocks"
 	"github.com/cloudfoundry-community/go-cfclient"
 	"github.com/stretchr/testify/mock"
 )
