@@ -1,6 +1,8 @@
 module github.com/cloud-gov/buildpack-notify
 
-go 1.17
+go 1.23.0
+
+toolchain go1.23.4
 
 require (
 	github.com/cloudfoundry-community/go-cfclient v0.0.0-20180710134401-c9b465ea2cf0
