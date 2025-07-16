@@ -35,7 +35,7 @@ For more information about the buildpack update(s), please see the following rel
 {{end}}
 
 For more information on keeping your application updated and secure, see: 
-https://cloud.gov/docs/getting-started/app-maintenance/
+https://cloud.gov/docs/deployment/app-maintenance/
 
 If you have questions, you can email us at cloud-gov-support@gsa.gov.
 
