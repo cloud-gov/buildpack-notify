@@ -1,17 +1,17 @@
 Hi cloud.gov user,
 
 cloud.gov frequently updates the programming language buildpacks available to
-our customers. Buildpack updates include programming language updates and
+our customers. Buildpack updates include programming language updates and 
 often include security fixes.
 
-We recently updated the buildpack in use by your application. You should
+We recently updated the buildpack in use by your application. You should 
 restage or redeploy your application to take advantage of the update.
 
 A rolling restage operation is the quickest way to upgrade without incurring
 downtime. You may still want to leverage your deployment infrastructure to
 perform the upgrade if you have compliance requirements for redeployment operations.
 
-You can restage your application by opening the command line and entering
+You can restage your application by opening the command line and entering 
 the following commands:
 
   cf target -o sandbox -s dev ; cf restage --strategy rolling my-drupal-app
@@ -22,7 +22,7 @@ For more information about the buildpack update(s), please see the following rel
   python_buildpack v1.7.43: https://github.com/cloudfoundry/python-buildpack/releases/tags/v1.7.43
 
 
-For more information on keeping your application updated and secure, see:
+For more information on keeping your application updated and secure, see: 
 https://cloud.gov/docs/deployment/app-maintenance/
 
 If you have questions, you can email us at cloud-gov-support@gsa.gov.
