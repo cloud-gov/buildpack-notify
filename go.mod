@@ -19,7 +19,6 @@ require (
 	github.com/codegangsta/inject v0.0.0-20150114235600-33e0aa1cb7c0 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/go-martini/martini v0.0.0-20170121215854-22fa46961aab // indirect
-	github.com/golang/protobuf v1.5.2 // indirect
 	github.com/martini-contrib/render v0.0.0-20150707142108-ec18f8345a11 // indirect
 	github.com/onsi/ginkgo v1.16.4 // indirect
 	github.com/onsi/gomega v1.16.0 // indirect
@@ -28,8 +27,6 @@ require (
 	github.com/smartystreets/goconvey v1.6.4 // indirect
 	github.com/stretchr/objx v0.1.1 // indirect
 	golang.org/x/net v0.38.0 // indirect
-	golang.org/x/oauth2 v0.0.0-20180620175406-ef147856a6dd // indirect
-	google.golang.org/appengine v1.1.0 // indirect
-	google.golang.org/protobuf v1.33.0 // indirect
+	golang.org/x/oauth2 v0.27.0 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
 )
