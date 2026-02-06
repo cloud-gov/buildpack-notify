@@ -62,14 +62,14 @@ resources:
 - name: notify-src
   type: git
   source:
-    uri: ((cg-buildpack-notify-git-uri))
+    uri: https://github.com/cloud-gov/cg-buildpack-notify.git
     branch: ((cg-buildpack-notify-git-branch))
     commit_verification_keys: ((cloud-gov-pgp-keys))
 
 - name: pull-request
   type: pull-request
   source:
-    repository: ((cg-buildpack-notify-github-repo-name))
+    repository: cloud-gov/cg-buildpack-notify
     access_token: ((status-access-token))
     disable_forks: true
 
@@ -104,6 +104,7 @@ resources:
     tag: latest
 
 jobs:
+
 - name: pull-status-check
   plan:
   - get: general-task
@@ -130,11 +131,19 @@ jobs:
         path: pull-request
         status: failure
 
+- name: set-self
+  plan:
+    - get: notify-src
+      trigger: true
+    - set_pipeline: self
+      file: notify-src/ci/pipeline.yml
+
 - name: test-cg-buildpack-notify
   plan:
   - get: general-task
   - get: notify-src
     trigger: true
+    passed: [set-self]
   - task: run-tests
     image: general-task
     file: notify-src/ci/run-tests.yml
@@ -155,7 +164,7 @@ jobs:
       IN_STATE: state/state.json
       OUT_STATE: out-state/state.json
       DRY_RUN: ((dry-run-staging))
-      CF_API: ((cf-api-staging))
+      CF_API: ((staging-cf-api-url))
       CLIENT_ID: ((cf-client-id-staging))
       CLIENT_SECRET: ((cf-client-secret-staging))
       SMTP_FROM: ((smtp-from-staging))
@@ -193,7 +202,7 @@ jobs:
       IN_STATE: state/state.json
       OUT_STATE: out-state/state.json
       DRY_RUN: ((dry-run-production))
-      CF_API: ((cf-api-production))
+      CF_API: ((prod-cf-api-url))
       CLIENT_ID: ((cf-client-id-production))
       CLIENT_SECRET: ((cf-client-secret-production))
       SMTP_FROM: ((smtp-from-production))
