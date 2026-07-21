@@ -118,7 +118,12 @@ func loadState(path string) (map[string]buildpackRecord, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer fp.Close()
+	defer func(fp *os.File) {
+		err := fp.Close()
+		if err != nil {
+			log.Fatalf("Error closing load state at path: %s with error: %s", path, err)
+		}
+	}(fp)
 	decoder := json.NewDecoder(fp)
 	var state map[string]buildpackRecord
 	if err := decoder.Decode(&state); err != nil {
@@ -204,11 +209,14 @@ func main() {
 		cfg *cfconfig.Config
 	)
 	if os.Getenv("INSECURE") == "1" {
-		cfg, _ = cfconfig.New(cfAPIConfig.API, cfconfig.ClientCredentials(cfAPIConfig.ClientID, cfAPIConfig.ClientSecret),
+		cfg, err = cfconfig.New(cfAPIConfig.API, cfconfig.ClientCredentials(cfAPIConfig.ClientID, cfAPIConfig.ClientSecret),
 			cfconfig.HttpClient(&http.Client{Timeout: 30 * time.Second}), cfconfig.SkipTLSValidation())
 	} else {
-		cfg, _ = cfconfig.New(cfAPIConfig.API, cfconfig.ClientCredentials(cfAPIConfig.ClientID, cfAPIConfig.ClientSecret),
+		cfg, err = cfconfig.New(cfAPIConfig.API, cfconfig.ClientCredentials(cfAPIConfig.ClientID, cfAPIConfig.ClientSecret),
 			cfconfig.HttpClient(&http.Client{Timeout: 30 * time.Second}))
+	}
+	if err != nil {
+		log.Fatalf("Unable to create config. Error: %s", err.Error())
 	}
 	client, err := cfclient.New(cfg)
 	if err != nil {
@@ -218,7 +226,6 @@ func main() {
 	mailer := InitSMTPMailer(emailConfig)
 	apps, buildpacks, state := getAppsAndBuildpacks(client, ctx, state)
 	outdatedApps, updatedBuildpacks := findOutdatedApps(client, apps, buildpacks)
-	//outdatedV2Apps := convertToV2Apps(client, outdatedApps)
 	owners := findOwnersOfApps(ctx, outdatedApps, client)
 	log.Printf("Will notify %d owners of outdated apps.\n", len(owners))
 	updatedBuildpacks = deduplicateBuildpacks(updatedBuildpacks)
@@ -261,49 +268,7 @@ func filterForNewlyUpdatedBuildpacks(
 	return filteredBuildpacks, state
 }
 
-//func filterForNewlyUpdatedBuildpacks(buildpacks []resource.Buildpack, state map[string]buildpackRecord) ([]resource.Buildpack, map[string]buildpackRecord) {
-//	filteredBuildpacks := []resource.Buildpack{}
-//	// Go through the passed in buildpacks
-//	// Check if current buildpack.guid matches a guid in storeBuildpacks
-//	// 1) If so, compare the buildpack.Meta.UpdatedAt with the storeBuildpack.LastUpdatedAt
-//	// 1a)   If buildpack.Meta.UpdatedAt (updated recently) > storeBuildpack.LastUpdatedAt,
-//	//       then add to filteredBuildpacks and updated database
-//	// 1b)   Else, continue
-//	// 2) If not, add to filteredBuildpacks and updated database
-//	// for buildpacks return buildpack.guid in stored.
-//
-//	for _, buildpack := range buildpacks {
-//		storedBuildpack, found := state[buildpack.GUID]
-//		if !found {
-//			filteredBuildpacks = append(filteredBuildpacks, buildpack)
-//			state[buildpack.GUID] = buildpackRecord{LastUpdatedAt: buildpack.UpdatedAt}
-//		} else {
-//			buildpackUpdatedAt, err := time.Parse(time.RFC3339, buildpack.UpdatedAt)
-//			if err != nil {
-//				log.Fatalf("Unable to parse buildpack updatedAt time. Buildpack GUID %s Error %s",
-//					buildpack.GUID, err)
-//			}
-//			storedBuildpackUpdatedAt, err := time.Parse(time.RFC3339, storedBuildpack.LastUpdatedAt)
-//			if err != nil {
-//				log.Fatalf("Unable to parse stored buildpack LastUpdatedAt time. Buildpack GUID %s Error %s",
-//					buildpack.GUID, err)
-//			}
-//			if buildpackUpdatedAt.After(storedBuildpackUpdatedAt) {
-//				filteredBuildpacks = append(filteredBuildpacks, buildpack)
-//				state[buildpack.GUID] = buildpackRecord{LastUpdatedAt: buildpack.UpdatedAt}
-//			} else {
-//				log.Printf("Supported Buildpack %s has not been updated\n", buildpack.Name)
-//				continue
-//			}
-//		}
-//
-//	}
-//
-//	return filteredBuildpacks, state
-//}
-
 func getAppsAndBuildpacks(client *cfclient.Client, ctx context.Context, state map[string]buildpackRecord) ([]*resource.App, map[string]resource.Buildpack, map[string]buildpackRecord) {
-	//apps, err := ListApps(client)
 	apps, err := client.Applications.ListAll(ctx, nil)
 	if err != nil {
 		log.Fatalf("Unable to get apps. Error: %s", err.Error())
@@ -325,7 +290,7 @@ func getAppsAndBuildpacks(client *cfclient.Client, ctx context.Context, state ma
 
 func deduplicateBuildpacks(allBuildpacks []buildpackReleaseInfo) []buildpackReleaseInfo {
 	keys := make(map[buildpackReleaseInfo]bool)
-	deduplicated := []buildpackReleaseInfo{}
+	var deduplicated []buildpackReleaseInfo
 	for _, entry := range allBuildpacks {
 		if _, value := keys[entry]; !value {
 			keys[entry] = true
@@ -346,49 +311,8 @@ func isDropletUsingSupportedBuildpack(droplet resource.Droplet, buildpacks map[s
 	return false, nil
 }
 
-// isDropletUsingOutdatedBuildpack checks if the droplet was created before the last time the buildpack was updated.
-// This comparison is the heart of checking whether the app needs an update.
-// Format of time stamp: 2016-06-08T16:41:45Z
-//func isDropletUsingOutdatedBuildpack(client *cfclient.Client, droplet Droplet, buildpack *resource.Buildpack) bool {
-//	timeOfLastAppRestage, err := time.Parse(time.RFC3339, droplet.CreatedAt)
-//	if err != nil {
-//		log.Fatalf("Unable to parse last restage time. Droplet GUID %s Error %s",
-//			droplet.GUID, err)
-//	}
-//timeOfLastBuildpackUpdate, err := time.Parse(
-//	time.RFC3339,
-//	buildpack.UpdatedAt.Format("2006-01-02 15:04:05"),
-//)
-//timeOfLastBuildpackUpdate := buildpack.UpdatedAt
-//if err != nil {
-//	log.Fatalf("Unable to parse last buildpack update time. Buildpack %s Buildpack GUID %s Error %s",
-//		buildpack.Name, buildpack.Guid, err)
-//}
-//return timeOfLastBuildpackUpdate.After(timeOfLastAppRestage)
-// }
-
-//type cfSpaceCache struct {
-//	spaceUsers map[string]map[string]cfclient.SpaceRole
-//}
-//
-//func createCFSpaceCache() *cfSpaceCache {
-//	return &cfSpaceCache{
-//		spaceUsers: make(map[string]map[string]cfclient.SpaceRole),
-//	}
-//}
-
-//	func filterForValidEmailUsernames(users []cfclient.SpaceRole, app cfclient.App) []cfclient.SpaceRole {
-//		var filteredUsers []cfclient.SpaceRole
-//		for _, user := range users {
-//			if _, err := mail.ParseAddress(user.Username); err == nil {
-//				filteredUsers = append(filteredUsers, user)
-//			} else {
-//				log.Printf("Dropping notification to user %s about app %s in space %s because "+
-//					"invalid e-mail address\n", user.Username, app.Name, app.SpaceGuid)
-//			}
-//		}
-//		return filteredUsers
-//	}
+// filterForValidEmailUsernames drops any users whose username is not a valid
+// e-mail address, since notifications are delivered by e-mail.
 func filterForValidEmailUsernames(users []*resource.User, app *resource.App) []*resource.User {
 	var filteredUsers []*resource.User
 	for _, user := range users {
@@ -402,54 +326,22 @@ func filterForValidEmailUsernames(users []*resource.User, app *resource.App) []*
 	return filteredUsers
 }
 
-//func (c *cfSpaceCache) getOwnersInAppSpace(app resource.App, client *cfclient.Client) map[string]cfclient.SpaceRole {
-//	var ok bool
-//	var ownersWithSpaceRoles map[string]cfclient.SpaceRole
-//	if ownersWithSpaceRoles, ok = c.spaceUsers[app.SpaceGuid]; ok {
-//		return ownersWithSpaceRoles
-//	}
-//	space, err := app.Space()
-//	if err != nil {
-//		log.Fatalf("Unable to get space of app %s. Error: %s", app.Name, err.Error())
-//	}
-//	spaceRoles, err := space.Roles()
-//	if err != nil {
-//		log.Fatalf("Unable to get roles for all users in space %s. Error: %s", space.Name, err.Error())
-//	}
-//	spaceRoles = filterForValidEmailUsernames(spaceRoles, app)
-//	ownersWithSpaceRoles = filterForUsersWithRoles(spaceRoles, getAppOwnerRoles())
-//
-//	c.spaceUsers[app.SpaceGuid] = ownersWithSpaceRoles
-//
-//	return ownersWithSpaceRoles
-//}
-
-// Returns a map of space roles we consider to be an owner.
-// We return a map for quick look-ups and comparisons.
-//func getAppOwnerRoles() map[string]bool {
-//	return map[string]bool{
-//		"space_manager":   true,
-//		"space_developer": true,
-//	}
-//}
-
-//	func filterForUsersWithRoles(spaceUsers []cfclient.SpaceRole, filteredRoles map[string]bool) map[string]cfclient.SpaceRole {
-//		filteredSpaceUsers := make(map[string]cfclient.SpaceRole)
-//		for _, spaceUser := range spaceUsers {
-//			if spaceUserHasRoles(spaceUser, filteredRoles) {
-//				filteredSpaceUsers[spaceUser.Guid] = spaceUser
-//			}
-//		}
-//		return filteredSpaceUsers
-//	}
 type cfSpaceCache struct {
 	// spaceGUID -> owner users (space_manager/space_developer) with valid-email usernames
 	spaceUsers map[string][]*resource.User
+	// spaceGUID -> resolved space and org names, used to render the notify email.
+	spaceNames map[string]spaceOrgNames
+}
+
+type spaceOrgNames struct {
+	SpaceName string
+	OrgName   string
 }
 
 func createCFSpaceCache() *cfSpaceCache {
 	return &cfSpaceCache{
 		spaceUsers: make(map[string][]*resource.User),
+		spaceNames: make(map[string]spaceOrgNames),
 	}
 }
 
@@ -459,6 +351,7 @@ func getAppOwnerSpaceRoleTypes() []resource.SpaceRoleType {
 		resource.SpaceRoleDeveloper,
 	}
 }
+
 func (c *cfSpaceCache) getOwnersInAppSpace(
 	ctx context.Context,
 	app *resource.App,
@@ -487,15 +380,47 @@ func (c *cfSpaceCache) getOwnersInAppSpace(
 	return ownersWithSpaceRoles
 }
 
-func findOwnersOfApps(ctx context.Context, apps []*resource.App, client *cfclient.Client) map[string][]resource.App {
+// getSpaceOrgNames resolves (and caches) the space name and parent org name for
+// an app's space. v3 resource.App only carries the space GUID, so we look these
+// up to render the "cf target -o ORG -s SPACE" line in the notify email.
+func (c *cfSpaceCache) getSpaceOrgNames(
+	ctx context.Context,
+	app *resource.App,
+	client *cfclient.Client,
+) spaceOrgNames {
+	spaceGUID := app.Relationships.Space.Data.GUID
+
+	if names, ok := c.spaceNames[spaceGUID]; ok {
+		return names
+	}
+
+	space, org, err := client.Spaces.GetIncludeOrganization(ctx, spaceGUID)
+	if err != nil {
+		log.Fatalf("Unable to get space and org for space %s. Error: %s", spaceGUID, err.Error())
+	}
+
+	names := spaceOrgNames{SpaceName: space.Name, OrgName: org.Name}
+	c.spaceNames[spaceGUID] = names
+	return names
+}
+
+func findOwnersOfApps(ctx context.Context, apps []*resource.App, client *cfclient.Client) map[string][]notifyApp {
 	// Mapping of users to the apps.
-	owners := make(map[string][]resource.App)
+	owners := make(map[string][]notifyApp)
 	spaceCache := createCFSpaceCache()
 	for _, app := range apps {
-		// Get the space
 		ownersWithSpaceRoles := spaceCache.getOwnersInAppSpace(ctx, app, client)
+		if len(ownersWithSpaceRoles) == 0 {
+			continue
+		}
+		names := spaceCache.getSpaceOrgNames(ctx, app, client)
+		appView := notifyApp{
+			Name:      app.Name,
+			SpaceName: names.SpaceName,
+			OrgName:   names.OrgName,
+		}
 		for _, ownerWithSpaceRoles := range ownersWithSpaceRoles {
-			owners[*ownerWithSpaceRoles.Username] = append(owners[*ownerWithSpaceRoles.Username], *app)
+			owners[*ownerWithSpaceRoles.Username] = append(owners[*ownerWithSpaceRoles.Username], appView)
 		}
 	}
 	return owners
@@ -503,22 +428,7 @@ func findOwnersOfApps(ctx context.Context, apps []*resource.App, client *cfclien
 
 // getCurrentDropletForApp will try to query the current droplet.
 // A running app will have 1 droplet associated with it.
-// If it doesn't have 1, it's not running. There should be no case when it's more
-// than 1 but if so, we need to do further investigation to handle it.
-//func getCurrentDropletForApp(app *resource.App, client *cfclient.Client) (Droplet, bool) {
-//	droplets, err := app.GetDropletsByQuery(client, url.Values{"current": []string{"true"}})
-//	if err != nil {
-//		// Log and continue if droplet not found
-//		log.Printf("Unable to get droplet for app. App %s App GUID %s Error %s",
-//			app.Name, app.GUID, err)
-//	}
-//	if len(droplets) != 1 {
-//		// We should only have 1.
-//		return Droplet{}, false
-//	}
-//	return droplets[0], true
-// }
-
+// If it doesn't have 1, it's not running.
 func getCurrentDropletForApp(
 	ctx context.Context,
 	app resource.App,
@@ -590,24 +500,12 @@ func findOutdatedApps(client *cfclient.Client, apps []*resource.App, buildpacks 
 	return
 }
 
-func spaceUserHasRoles(user cfclient.SpaceRole, roles map[string]bool) bool {
-	for _, roleOfUser := range user.SpaceRoles {
-		if found, _ := roles[roleOfUser]; found {
-			return true
-		}
-	}
-	return false
-}
-
-func sendNotifyEmailToUsers(users map[string][]cfclient.App, updatedBuildpacks []buildpackReleaseInfo, templates *Templates, mailer Mailer, dryRun bool) {
+func sendNotifyEmailToUsers(users map[string][]notifyApp, updatedBuildpacks []buildpackReleaseInfo, templates *Templates, mailer Mailer, dryRun bool) {
 	for user, apps := range users {
 		// Create buffer
 		body := new(bytes.Buffer)
 		// Determine whether the user has one application or more than one.
-		isMultipleApp := false
-		if len(apps) > 1 {
-			isMultipleApp = true
-		}
+		isMultipleApp := len(apps) > 1
 		// Fill buffer with completed e-mail
 		err := templates.getNotifyEmail(body, notifyEmail{user, apps, isMultipleApp, updatedBuildpacks})
 		if err != nil {
@@ -620,7 +518,7 @@ func sendNotifyEmailToUsers(users map[string][]cfclient.App, updatedBuildpacks [
 			if isMultipleApp {
 				subj += "s"
 			}
-			err := mailer.SendEmail(user, fmt.Sprint(subj), body.Bytes())
+			err := mailer.SendEmail(user, subj, body.Bytes())
 			if err != nil {
 				log.Printf("Unable to send e-mail to %s\n", user)
 				continue
