@@ -4,6 +4,8 @@ github.com/Masterminds/semver v1.5.0 h1:H65muMkzWKEuNDnfl9d70GUjFniHKHRbFPGBuZ3Q
 github.com/Masterminds/semver v1.5.0/go.mod h1:MB6lktGJrhw8PrUyiEoblNEGEQ+RzHPF078ddwwvV3Y=
 github.com/cloudfoundry-community/go-cfclient v0.0.0-20220930021109-9c4e6c59ccf1 h1:ef0OsiQjSQggHrLFAMDRiu6DfkVSElA5jfG1/Nkyu6c=
 github.com/cloudfoundry-community/go-cfclient v0.0.0-20220930021109-9c4e6c59ccf1/go.mod h1:sgaEj3tRn0hwe7GPdEUwxrdOqjBzyjyvyOCGf1OQyZY=
+github.com/cloudfoundry/go-cfclient/v3 v3.0.0-beta.1 h1:y0f4/xA3fn8WlUnA4dPpoRbhhL/65ktG8uHZe8aF4ZE=
+github.com/cloudfoundry/go-cfclient/v3 v3.0.0-beta.1/go.mod h1:cwg8bywOst/2c5huQgBIbA5gcI4g8DLov00cJaDaFy0=
 github.com/codegangsta/inject v0.0.0-20150114235600-33e0aa1cb7c0 h1:sDMmm+q/3+BukdIpxwO365v/Rbspp2Nt5XntgQRXq8Q=
 github.com/codegangsta/inject v0.0.0-20150114235600-33e0aa1cb7c0/go.mod h1:4Zcjuz89kmFXt9morQgcfYZAYZ5n8WHjt81YYWIwtTM=
 github.com/davecgh/go-spew v1.1.0/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
