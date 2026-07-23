@@ -1,4 +1,4 @@
-cg-buildpack-notify
+buildpack-notify
 *.html.returned
 log.txt
 credentials.yml
@@ -7,3 +7,4 @@ credentials.yml
 vendor/
 ci/*.lock
 **/bin/dummy-app
+.idea/

@@ -2,12 +2,9 @@ package main
 
 import (
 	"bytes"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"testing"
-
-	cfclient "github.com/cloudfoundry-community/go-cfclient"
 )
 
 func TestGetNotifyEmail(t *testing.T) {
@@ -38,26 +35,16 @@ func TestGetNotifyEmail(t *testing.T) {
 	}{
 		{
 			"single app",
-			notifyEmail{"test@example.com", []cfclient.App{{Name: "my-drupal-app",
-				SpaceData: cfclient.SpaceResource{Entity: cfclient.Space{Name: "dev",
-					OrgData: cfclient.OrgResource{Entity: cfclient.Org{Name: "sandbox"}},
-				}},
-			}}, false, updatedBuildpacksSingleApp},
+			notifyEmail{"test@example.com", []notifyApp{
+				{Name: "my-drupal-app", SpaceName: "dev", OrgName: "sandbox"},
+			}, false, updatedBuildpacksSingleApp},
 			filepath.Join(rootDataPath, "single_app.txt"),
 		},
 		{
 			"multiple apps",
-			notifyEmail{"test@example.com", []cfclient.App{
-				{Name: "my-drupal-app",
-					SpaceData: cfclient.SpaceResource{Entity: cfclient.Space{Name: "dev",
-						OrgData: cfclient.OrgResource{Entity: cfclient.Org{Name: "sandbox"}},
-					}},
-				},
-				{Name: "my-wordpress-app",
-					SpaceData: cfclient.SpaceResource{Entity: cfclient.Space{Name: "staging",
-						OrgData: cfclient.OrgResource{Entity: cfclient.Org{Name: "paid-org"}},
-					}},
-				},
+			notifyEmail{"test@example.com", []notifyApp{
+				{Name: "my-drupal-app", SpaceName: "dev", OrgName: "sandbox"},
+				{Name: "my-wordpress-app", SpaceName: "staging", OrgName: "paid-org"},
 			}, true, updatedBuildpacksMultipleApps},
 			filepath.Join(rootDataPath, "multiple_apps.txt"),
 		},
@@ -74,20 +61,20 @@ func TestGetNotifyEmail(t *testing.T) {
 				t.Errorf("Can't construct final email. Error %s", err.Error())
 			}
 			if os.Getenv("OVERRIDE_TEMPLATES") == "1" {
-				err := ioutil.WriteFile(tc.expectedEmail, body.Bytes(), 0644)
+				err := os.WriteFile(tc.expectedEmail, body.Bytes(), 0644)
 				if err != nil {
 					t.Errorf("Can't save expected email. Error %s", err.Error())
 				}
 			}
-			expectedBody, err := ioutil.ReadFile(tc.expectedEmail)
+			expectedBody, err := os.ReadFile(tc.expectedEmail)
 			if err != nil {
 				t.Fatalf("Unable to read expected file. %s", err.Error())
 			}
-			if string(expectedBody) != string(body.Bytes()) {
+			if string(expectedBody) != body.String() {
 				t.Logf("\n===========Expected %s e-mail case BEGIN===========\n%s\n===========Expected %s e-mail case END===========\n", tc.name, string(expectedBody), tc.name)
-				t.Logf("\n===========Actual %s e-mail case BEGIN===========\n%s\n===========Actual %s e-mail case END===========\n", tc.name, string(body.Bytes()), tc.name)
+				t.Logf("\n===========Actual %s e-mail case BEGIN===========\n%s\n===========Actual %s e-mail case END===========\n", tc.name, body.String(), tc.name)
 				t.Errorf("Test %s failed. For the actual output, inspect %s.returned.", tc.name, filepath.Base(tc.expectedEmail))
-				ioutil.WriteFile(filepath.Join(rootDataPath, filepath.Base(tc.expectedEmail)+".returned"), body.Bytes(), 0644)
+				_ = os.WriteFile(filepath.Join(rootDataPath, filepath.Base(tc.expectedEmail)+".returned"), body.Bytes(), 0644)
 			}
 		})
 	}

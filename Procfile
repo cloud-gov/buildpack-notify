@@ -1,1 +1,1 @@
-web: cg-buildpack-notify
+web: buildpack-notify

@@ -8,6 +8,17 @@ cd "$(dirname "$0")"
 # CF_USER
 # CF_PASS
 # TEST_PASS
+# IN_STATE
+# OUT_STATE
+
+if [ -z "$IN_STATE" ] || [ -z "$OUT_STATE" ]; then
+  echo "IN_STATE and OUT_STATE must be set"
+  exit 1
+fi
+
+if [ ! -f "$IN_STATE" ]; then
+  echo '{}' > "$IN_STATE"
+fi
 
 BUILDPACK_NAME="notify-test-buildpack"
 BUILDPACK_VERSION_1_ZIP="https://github.com/cloudfoundry/binary-buildpack/releases/download/v1.0.13/binary-buildpack-v1.0.13.zip"
@@ -49,7 +60,7 @@ pushd app || exit 1
 
   # Run buildpack notify app
   pushd ../../
-    go build && ./cg-buildpack-notify -notify > log.txt
+    go build && ./buildpack-notify > log.txt
     ## show the log.
     echo "Showing run log.."
     cat log.txt
@@ -65,12 +76,14 @@ pushd app || exit 1
     fi
   popd || exit 1
 
+  cp "$OUT_STATE" "$IN_STATE"
+
   # update the buildpack
   cf update-buildpack $BUILDPACK_NAME -p $BUILDPACK_VERSION_2_ZIP -i 100 --enable
 
   # Run buildpack notify app
   pushd ../../
-    go build && ./cg-buildpack-notify -notify > log.txt
+    go build && ./buildpack-notify > log.txt
     ## show the log.
     echo "Showing run log.."
     cat log.txt
@@ -86,12 +99,14 @@ pushd app || exit 1
     fi
   popd || exit 1
 
+  cp "$OUT_STATE" "$IN_STATE"
+
   # deploy the app again
   cf restage dummy-app
 
   # Run buildpack notify app
   pushd ../../
-    go build && ./cg-buildpack-notify -notify > log.txt
+    go build && ./buildpack-notify > log.txt
     ## show the log.
     echo "Showing run log.."
     cat log.txt

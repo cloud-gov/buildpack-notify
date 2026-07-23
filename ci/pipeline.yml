@@ -62,14 +62,14 @@ resources:
 - name: notify-src
   type: git
   source:
-    uri: https://github.com/cloud-gov/cg-buildpack-notify.git
-    branch: ((cg-buildpack-notify-git-branch))
+    uri: https://github.com/cloud-gov/buildpack-notify.git
+    branch: ((buildpack-notify-git-branch))
     commit_verification_keys: ((cloud-gov-pgp-keys))
 
 - name: pull-request
   type: pull-request
   source:
-    repository: cloud-gov/cg-buildpack-notify
+    repository: cloud-gov/buildpack-notify
     access_token: ((status-access-token))
     disable_forks: true
 
@@ -138,7 +138,7 @@ jobs:
     - set_pipeline: self
       file: notify-src/ci/pipeline.yml
 
-- name: test-cg-buildpack-notify
+- name: test-buildpack-notify
   plan:
   - get: general-task
   - get: notify-src
@@ -154,7 +154,7 @@ jobs:
   - get: check-buildpack-updates
     trigger: true
   - get: notify-src
-    passed: [test-cg-buildpack-notify]
+    passed: [test-buildpack-notify]
   - get: state
     resource: state-staging
   - task: do-notify

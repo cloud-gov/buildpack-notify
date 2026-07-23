@@ -5,8 +5,6 @@ import (
 	"html/template"
 	"io"
 	"path/filepath"
-
-	cfclient "github.com/cloudfoundry-community/go-cfclient"
 )
 
 const (
@@ -50,10 +48,19 @@ func (t *Templates) getTemplate(templateKey string) (*template.Template, error) 
 	return nil, fmt.Errorf("unable to find template with key %s", templateKey)
 }
 
+// notifyApp is the view-model for a single app referenced in a notify email.
+// v3 resource.App does not carry space/org names, so we resolve them and pass
+// them explicitly to the template.
+type notifyApp struct {
+	Name      string
+	SpaceName string
+	OrgName   string
+}
+
 // notifyEmail provides struct for the templates/mail/notify.tmpl
 type notifyEmail struct {
 	Username      string
-	Apps          []cfclient.App
+	Apps          []notifyApp
 	IsMultipleApp bool
 	Buildpacks    []buildpackReleaseInfo
 }
