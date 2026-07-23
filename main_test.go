@@ -5,6 +5,8 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
+	"sort"
 	"strings"
 	"testing"
 	"time"
@@ -193,6 +195,26 @@ func TestIsDropletUsingOutdatedBuildpack(t *testing.T) {
 	}
 }
 
+func TestFilterForValidEmailUsernames(t *testing.T) {
+	valid := "valid@example.com"
+	invalid := "not-an-email"
+	app := &resource.App{Name: "test-app"}
+	app.Relationships.Space.Data = &resource.Relationship{GUID: "space-guid"}
+
+	filtered := filterForValidEmailUsernames([]*resource.User{
+		{Username: &valid},
+		{Username: &invalid},
+		{Resource: resource.Resource{GUID: "missing-username-guid"}},
+	}, app)
+
+	if len(filtered) != 1 {
+		t.Fatalf("expected 1 valid user, got %d", len(filtered))
+	}
+	if filtered[0].Username == nil || *filtered[0].Username != valid {
+		t.Fatalf("expected valid user to be retained")
+	}
+}
+
 const (
 	user1     = "user1@example.com"
 	user1GUID = "user1-guid"
@@ -221,6 +243,25 @@ type roleSpec struct {
 	roleType string // e.g. "space_manager", "space_developer", "space_auditor"
 }
 
+type roleRequestExpectation struct {
+	roleTypes        []string
+	requireInclusion bool
+}
+
+type dropletSpec struct {
+	forAppGUID string
+	createdAt  time.Time
+	buildpacks []resource.DetectedBuildpack
+	statusCode int
+}
+
+type buildpackSpec struct {
+	guid      string
+	name      string
+	updatedAt time.Time
+	filename  *string
+}
+
 func v3App(spec appSpec) *resource.App {
 	app := &resource.App{
 		Name:  spec.name,
@@ -234,7 +275,7 @@ func v3App(spec appSpec) *resource.App {
 // newV3TestServerAndClient stands up a httptest server that emulates the
 // subset of the v3 CF API used by findOwnersOfApps, and returns a connected
 // client.
-func newV3TestServerAndClient(t *testing.T, apps []appSpec, spaces map[string]spaceSpec) (*cfclient.Client, func()) {
+func newV3TestServerAndClient(t *testing.T, apps []appSpec, spaces map[string]spaceSpec, roleExpectation *roleRequestExpectation, buildpacks []buildpackSpec, droplets map[string]dropletSpec) (*cfclient.Client, func()) {
 	t.Helper()
 
 	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -256,6 +297,17 @@ func newV3TestServerAndClient(t *testing.T, apps []appSpec, spaces map[string]sp
 			}
 			_ = encoder.Encode(resource.AppList{Resources: resources})
 
+		case r.URL.Path == "/v3/buildpacks":
+			resources := make([]*resource.Buildpack, 0, len(buildpacks))
+			for _, bp := range buildpacks {
+				resources = append(resources, &resource.Buildpack{
+					Resource: resource.Resource{GUID: bp.guid, UpdatedAt: bp.updatedAt},
+					Name:     bp.name,
+					Filename: bp.filename,
+				})
+			}
+			_ = encoder.Encode(resource.BuildpackList{Resources: resources})
+
 		case strings.HasPrefix(r.URL.Path, "/v3/spaces/"):
 			spaceGUID := strings.TrimPrefix(r.URL.Path, "/v3/spaces/")
 			spec := spaces[spaceGUID]
@@ -275,6 +327,9 @@ func newV3TestServerAndClient(t *testing.T, apps []appSpec, spaces map[string]sp
 			var wanted string
 			if len(spaceGUIDs) > 0 {
 				wanted = spaceGUIDs[0]
+			}
+			if roleExpectation != nil {
+				assertRoleRequest(t, r.URL.Query(), wanted, *roleExpectation)
 			}
 			spec := spaces[wanted]
 
@@ -313,6 +368,24 @@ func newV3TestServerAndClient(t *testing.T, apps []appSpec, spaces map[string]sp
 				Included:  &resource.RoleIncluded{Users: users},
 			})
 
+		case strings.HasPrefix(r.URL.Path, "/v3/apps/") && strings.HasSuffix(r.URL.Path, "/droplets/current"):
+			appGUID := strings.TrimSuffix(strings.TrimPrefix(r.URL.Path, "/v3/apps/"), "/droplets/current")
+			droplet, ok := droplets[appGUID]
+			if !ok {
+				w.WriteHeader(http.StatusNotFound)
+				_ = encoder.Encode(map[string]any{"errors": []map[string]string{{"detail": "droplet not found"}}})
+				return
+			}
+			if droplet.statusCode != 0 && droplet.statusCode != http.StatusOK {
+				w.WriteHeader(droplet.statusCode)
+				_ = encoder.Encode(map[string]any{"errors": []map[string]string{{"detail": "droplet error"}}})
+				return
+			}
+			_ = encoder.Encode(resource.Droplet{
+				Resource:   resource.Resource{CreatedAt: droplet.createdAt},
+				Buildpacks: droplet.buildpacks,
+			})
+
 		default:
 			t.Errorf("Unhandled path in test server: %s", r.URL.Path)
 			w.WriteHeader(http.StatusNotFound)
@@ -338,6 +411,50 @@ func newV3TestServerAndClient(t *testing.T, apps []appSpec, spaces map[string]sp
 	}
 
 	return client, ts.Close
+}
+
+func assertRoleRequest(t *testing.T, values url.Values, wanted string, expected roleRequestExpectation) {
+	t.Helper()
+
+	spaceGUIDs := values["space_guids"]
+	if len(spaceGUIDs) != 1 || spaceGUIDs[0] != wanted {
+		t.Errorf("expected space_guids=%s, got %v", wanted, spaceGUIDs)
+	}
+
+	actualTypes := splitAndSort(values["types"])
+	expectedTypes := append([]string(nil), expected.roleTypes...)
+	sort.Strings(expectedTypes)
+	if len(actualTypes) != len(expectedTypes) {
+		t.Errorf("expected role types %v, got %v", expectedTypes, actualTypes)
+	} else {
+		for i := range expectedTypes {
+			if actualTypes[i] != expectedTypes[i] {
+				t.Errorf("expected role types %v, got %v", expectedTypes, actualTypes)
+				break
+			}
+		}
+	}
+
+	includeUsers := false
+	for _, includeValue := range values["include"] {
+		for _, part := range strings.Split(includeValue, ",") {
+			if part == "user" {
+				includeUsers = true
+			}
+		}
+	}
+	if expected.requireInclusion && !includeUsers {
+		t.Errorf("expected include=user, got %v", values["include"])
+	}
+}
+
+func splitAndSort(values []string) []string {
+	var parts []string
+	for _, value := range values {
+		parts = append(parts, strings.Split(value, ",")...)
+	}
+	sort.Strings(parts)
+	return parts
 }
 
 func TestFindOwnersOfApps(t *testing.T) {
@@ -451,7 +568,10 @@ func TestFindOwnersOfApps(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			client, closeFn := newV3TestServerAndClient(t, tc.apps, tc.spaces)
+			client, closeFn := newV3TestServerAndClient(t, tc.apps, tc.spaces, &roleRequestExpectation{
+				roleTypes:        []string{"space_developer", "space_manager"},
+				requireInclusion: true,
+			}, nil, nil)
 			defer closeFn()
 
 			ctx := context.Background()
@@ -488,6 +608,80 @@ func TestFindOwnersOfApps(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+func TestFindOutdatedApps(t *testing.T) {
+	older := time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC)
+	newer := time.Date(2024, 2, 1, 0, 0, 0, 0, time.UTC)
+	bpFilename := "python_buildpack-cflinuxfs4-v1.2.3.zip"
+
+	apps := []appSpec{
+		{guid: "started-outdated", name: "started-outdated", spaceGUID: "space-1"},
+		{guid: "started-current", name: "started-current", spaceGUID: "space-1"},
+		{guid: "started-unsupported", name: "started-unsupported", spaceGUID: "space-1"},
+		{guid: "started-missing-filename", name: "started-missing-filename", spaceGUID: "space-1"},
+	}
+
+	client, closeFn := newV3TestServerAndClient(t, apps, map[string]spaceSpec{
+		"space-1": {name: "dev", orgName: "sandbox"},
+	}, nil, []buildpackSpec{
+		{guid: "bp-1", name: "python_buildpack", updatedAt: newer, filename: &bpFilename},
+		{guid: "bp-2", name: "ruby_buildpack", updatedAt: newer, filename: nil},
+	}, map[string]dropletSpec{
+		"started-outdated": {
+			createdAt:  older,
+			buildpacks: []resource.DetectedBuildpack{{Name: "python_buildpack"}},
+		},
+		"started-current": {
+			createdAt:  newer.Add(24 * time.Hour),
+			buildpacks: []resource.DetectedBuildpack{{Name: "python_buildpack"}},
+		},
+		"started-unsupported": {
+			createdAt:  older,
+			buildpacks: []resource.DetectedBuildpack{{Name: "custom_buildpack"}},
+		},
+		"started-missing-filename": {
+			createdAt:  older,
+			buildpacks: []resource.DetectedBuildpack{{Name: "ruby_buildpack"}},
+		},
+	})
+	defer closeFn()
+
+	ctx := context.Background()
+	cfApps, err := client.Applications.ListAll(ctx, nil)
+	if err != nil {
+		t.Fatalf("listing apps: %v", err)
+	}
+	cfApps[1].State = "STARTED"
+	cfApps[2].State = "STARTED"
+	cfApps[3].State = "STARTED"
+	cfApps = append(cfApps, &resource.App{Name: "stopped-app", State: "STOPPED", Resource: resource.Resource{GUID: "stopped-app"}})
+
+	buildpackList, err := client.Buildpacks.ListAll(ctx, nil)
+	if err != nil {
+		t.Fatalf("listing buildpacks: %v", err)
+	}
+	buildpacks := map[string]resource.Buildpack{}
+	for _, bp := range buildpackList {
+		buildpacks[bp.Name] = *bp
+	}
+
+	outdatedApps, updatedBuildpacks := findOutdatedApps(client, cfApps, buildpacks)
+	if len(outdatedApps) != 1 {
+		t.Fatalf("expected 1 outdated app, got %d", len(outdatedApps))
+	}
+	if outdatedApps[0].Name != "started-outdated" {
+		t.Fatalf("expected started-outdated, got %s", outdatedApps[0].Name)
+	}
+	if len(updatedBuildpacks) != 1 {
+		t.Fatalf("expected 1 updated buildpack entry, got %d", len(updatedBuildpacks))
+	}
+	if updatedBuildpacks[0].BuildpackName != "python_buildpack" {
+		t.Fatalf("expected python_buildpack release info, got %s", updatedBuildpacks[0].BuildpackName)
+	}
+	if updatedBuildpacks[0].BuildpackVersion != "v1.2.3" {
+		t.Fatalf("expected parsed buildpack version v1.2.3, got %s", updatedBuildpacks[0].BuildpackVersion)
 	}
 }
 

@@ -250,8 +250,8 @@ func filterForNewlyUpdatedBuildpacks(
 
 	// For each buildpack:
 	// 1) If its GUID isn't in state -> it's new, keep it and record its UpdatedAt.
-	// 2) If it is in state and UpdatedAt is newer than what we stored -> keep it, update state.
-	// 3) Otherwise it's unchanged -> skip.
+	// 2) If it is in state and UpdatedAt is newer than what we stored, keep it and update state.
+	// 3) Otherwise it's unchanged, skip it.
 
 	for _, buildpack := range buildpacks {
 		storedBuildpack, found := state[buildpack.GUID]
@@ -271,7 +271,7 @@ func filterForNewlyUpdatedBuildpacks(
 func getAppsAndBuildpacks(client *cfclient.Client, ctx context.Context, state map[string]buildpackRecord) ([]*resource.App, map[string]resource.Buildpack, map[string]buildpackRecord) {
 	apps, err := client.Applications.ListAll(ctx, nil)
 	if err != nil {
-		log.Fatalf("Unable to get apps. Error: %s", err.Error())
+		log.Fatalf("Unable to get apps. Error: %s", err)
 	}
 	// Get all the buildpacks from our CF deployment via CF_API.
 	buildpackList, err := client.Buildpacks.ListAll(ctx, nil)
@@ -316,6 +316,11 @@ func isDropletUsingSupportedBuildpack(droplet resource.Droplet, buildpacks map[s
 func filterForValidEmailUsernames(users []*resource.User, app *resource.App) []*resource.User {
 	var filteredUsers []*resource.User
 	for _, user := range users {
+		if user.Username == nil {
+			log.Printf("Dropping notification to user %s about app %s in space %s because missing e-mail address\n",
+				user.GUID, app.Name, app.Relationships.Space.Data.GUID)
+			continue
+		}
 		if _, err := mail.ParseAddress(*user.Username); err != nil {
 			log.Printf("Dropping notification to user %s about app %s in space %s because "+
 				"invalid e-mail address\n", *user.Username, app.Name, app.Relationships.Space.Data.GUID)
@@ -329,7 +334,7 @@ func filterForValidEmailUsernames(users []*resource.User, app *resource.App) []*
 type cfSpaceCache struct {
 	// spaceGUID -> owner users (space_manager/space_developer) with valid-email usernames
 	spaceUsers map[string][]*resource.User
-	// spaceGUID -> resolved space and org names, used to render the notify email.
+	// spaceGUID -> resolved space and org names, used to render the email to notify users.
 	spaceNames map[string]spaceOrgNames
 }
 
@@ -382,7 +387,7 @@ func (c *cfSpaceCache) getOwnersInAppSpace(
 
 // getSpaceOrgNames resolves (and caches) the space name and parent org name for
 // an app's space. v3 resource.App only carries the space GUID, so we look these
-// up to render the "cf target -o ORG -s SPACE" line in the notify email.
+// up to render the "cf target -o ORG -s SPACE" line in the email to notify users.
 func (c *cfSpaceCache) getSpaceOrgNames(
 	ctx context.Context,
 	app *resource.App,
@@ -484,6 +489,10 @@ func findOutdatedApps(client *cfclient.Client, apps []*resource.App, buildpacks 
 			// If the app is using an outdated buildpack, get the buildpack information to pass along to the user.
 			log.Printf("App %s Guid %s | Buildpack %s is outdated\n", app.Name, app.GUID, buildpack.Name)
 			buildpackReleaseURL := getBuildpackReleaseURL(buildpack.Name)
+			if buildpack.Filename == nil {
+				log.Printf("Buildpack %s guid %s missing filename metadata; skipping release info\n", buildpack.Name, buildpack.GUID)
+				continue
+			}
 			buildpackVersion := parseBuildpackVersion(*buildpack.Filename)
 			buildpackVersionURL := getBuildpackVersionURL(buildpackReleaseURL, buildpackVersion)
 
