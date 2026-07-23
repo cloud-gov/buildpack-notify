@@ -1,4 +1,4 @@
-# cg-buildpack-notify
+# buildpack-notify
 
 Encouraging cloud foundry customers to restage their apps so they can benefit from buildpack updates.
 
