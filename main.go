@@ -118,12 +118,11 @@ func loadState(path string) (map[string]buildpackRecord, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer func(fp *os.File) {
-		err := fp.Close()
-		if err != nil {
-			log.Fatalf("Error closing load state at path: %s with error: %s", path, err)
+	defer func() {
+		if err := fp.Close(); err != nil {
+			log.Printf("Error closing load state at path %s: %s", path, err)
 		}
-	}(fp)
+	}()
 	decoder := json.NewDecoder(fp)
 	var state map[string]buildpackRecord
 	if err := decoder.Decode(&state); err != nil {
@@ -137,23 +136,21 @@ func copyState(inPath, outPath string) error {
 	if err != nil {
 		return err
 	}
-	defer func(in *os.File) {
-		err := in.Close()
-		if err != nil {
-			log.Fatalf("Error closing inPath %s err: %s", inPath, err)
+	defer func() {
+		if err := in.Close(); err != nil {
+			log.Printf("Error closing input state path %s: %s", inPath, err)
 		}
-	}(in)
+	}()
 
 	out, err := os.Create(outPath)
 	if err != nil {
 		return err
 	}
-	defer func(out *os.File) {
-		err := out.Close()
-		if err != nil {
-			log.Fatalf("Error closing outPath %s err: %s", outPath, err)
+	defer func() {
+		if err := out.Close(); err != nil {
+			log.Printf("Error closing output state path %s: %s", outPath, err)
 		}
-	}(out)
+	}()
 	_, err = io.Copy(out, in)
 	return err
 }
@@ -163,13 +160,11 @@ func saveState(state map[string]buildpackRecord, path string) error {
 	if err != nil {
 		return err
 	}
-	defer func(fp *os.File) {
-		err := fp.Close()
-		if err != nil {
-			log.Fatalf("Error closing path %s err: %s", path, err)
-
+	defer func() {
+		if err := fp.Close(); err != nil {
+			log.Printf("Error closing state path %s: %s", path, err)
 		}
-	}(fp)
+	}()
 	encoder := json.NewEncoder(fp)
 	return encoder.Encode(state)
 }
@@ -224,8 +219,11 @@ func main() {
 	}
 	log.Println("Calculating notifications to send for outdated buildpacks.")
 	mailer := InitSMTPMailer(emailConfig)
-	apps, buildpacks, state := getAppsAndBuildpacks(client, ctx, state)
-	outdatedApps, updatedBuildpacks := findOutdatedApps(client, apps, buildpacks)
+	apps, buildpacks, state, err := getAppsAndBuildpacks(client, ctx, state)
+	if err != nil {
+		log.Fatalf("Unable to load apps and buildpacks: %s", err)
+	}
+	outdatedApps, updatedBuildpacks := findOutdatedApps(ctx, client, apps, buildpacks)
 	owners := findOwnersOfApps(ctx, outdatedApps, client)
 	log.Printf("Will notify %d owners of outdated apps.\n", len(owners))
 	updatedBuildpacks = deduplicateBuildpacks(updatedBuildpacks)
@@ -268,15 +266,15 @@ func filterForNewlyUpdatedBuildpacks(
 	return filteredBuildpacks, state
 }
 
-func getAppsAndBuildpacks(client *cfclient.Client, ctx context.Context, state map[string]buildpackRecord) ([]*resource.App, map[string]resource.Buildpack, map[string]buildpackRecord) {
+func getAppsAndBuildpacks(client *cfclient.Client, ctx context.Context, state map[string]buildpackRecord) ([]*resource.App, map[string]resource.Buildpack, map[string]buildpackRecord, error) {
 	apps, err := client.Applications.ListAll(ctx, nil)
 	if err != nil {
-		log.Fatalf("Unable to get apps. Error: %s", err)
+		return nil, nil, state, err
 	}
 	// Get all the buildpacks from our CF deployment via CF_API.
 	buildpackList, err := client.Buildpacks.ListAll(ctx, nil)
 	if err != nil {
-		log.Fatalf("Unable to get buildpacks. Error: %s", err)
+		return nil, nil, state, err
 	}
 	filteredBuildpackList, state := filterForNewlyUpdatedBuildpacks(buildpackList, state)
 
@@ -285,7 +283,7 @@ func getAppsAndBuildpacks(client *cfclient.Client, ctx context.Context, state ma
 	for _, buildpack := range filteredBuildpackList {
 		buildpacks[buildpack.Name] = buildpack
 	}
-	return apps, buildpacks, state
+	return apps, buildpacks, state, nil
 }
 
 func deduplicateBuildpacks(allBuildpacks []buildpackReleaseInfo) []buildpackReleaseInfo {
@@ -361,11 +359,11 @@ func (c *cfSpaceCache) getOwnersInAppSpace(
 	ctx context.Context,
 	app *resource.App,
 	client *cfclient.Client,
-) []*resource.User {
+) ([]*resource.User, error) {
 	spaceGUID := app.Relationships.Space.Data.GUID
 
 	if users, ok := c.spaceUsers[spaceGUID]; ok {
-		return users
+		return users, nil
 	}
 
 	opts := cfclient.NewRoleListOptions()
@@ -376,13 +374,13 @@ func (c *cfSpaceCache) getOwnersInAppSpace(
 
 	_, users, err := client.Roles.ListIncludeUsersAll(ctx, opts)
 	if err != nil {
-		log.Fatalf("Unable to get roles for all users in space %s. Error: %s", spaceGUID, err.Error())
+		return nil, err
 	}
 
 	ownersWithSpaceRoles := filterForValidEmailUsernames(users, app)
 
 	c.spaceUsers[spaceGUID] = ownersWithSpaceRoles
-	return ownersWithSpaceRoles
+	return ownersWithSpaceRoles, nil
 }
 
 // getSpaceOrgNames resolves (and caches) the space name and parent org name for
@@ -392,21 +390,21 @@ func (c *cfSpaceCache) getSpaceOrgNames(
 	ctx context.Context,
 	app *resource.App,
 	client *cfclient.Client,
-) spaceOrgNames {
+) (spaceOrgNames, error) {
 	spaceGUID := app.Relationships.Space.Data.GUID
 
 	if names, ok := c.spaceNames[spaceGUID]; ok {
-		return names
+		return names, nil
 	}
 
 	space, org, err := client.Spaces.GetIncludeOrganization(ctx, spaceGUID)
 	if err != nil {
-		log.Fatalf("Unable to get space and org for space %s. Error: %s", spaceGUID, err.Error())
+		return spaceOrgNames{}, err
 	}
 
 	names := spaceOrgNames{SpaceName: space.Name, OrgName: org.Name}
 	c.spaceNames[spaceGUID] = names
-	return names
+	return names, nil
 }
 
 func findOwnersOfApps(ctx context.Context, apps []*resource.App, client *cfclient.Client) map[string][]notifyApp {
@@ -414,11 +412,21 @@ func findOwnersOfApps(ctx context.Context, apps []*resource.App, client *cfclien
 	owners := make(map[string][]notifyApp)
 	spaceCache := createCFSpaceCache()
 	for _, app := range apps {
-		ownersWithSpaceRoles := spaceCache.getOwnersInAppSpace(ctx, app, client)
+		ownersWithSpaceRoles, err := spaceCache.getOwnersInAppSpace(ctx, app, client)
+		if err != nil {
+			log.Printf("Unable to get owners for app %s guid %s in space %s: %s\n",
+				app.Name, app.GUID, app.Relationships.Space.Data.GUID, err)
+			continue
+		}
 		if len(ownersWithSpaceRoles) == 0 {
 			continue
 		}
-		names := spaceCache.getSpaceOrgNames(ctx, app, client)
+		names, err := spaceCache.getSpaceOrgNames(ctx, app, client)
+		if err != nil {
+			log.Printf("Unable to get org/space names for app %s guid %s in space %s: %s\n",
+				app.Name, app.GUID, app.Relationships.Space.Data.GUID, err)
+			continue
+		}
 		appView := notifyApp{
 			Name:      app.Name,
 			SpaceName: names.SpaceName,
@@ -464,13 +472,12 @@ func isDropletUsingOutdatedBuildpack(
 	return droplet.CreatedAt.Before(buildpack.UpdatedAt)
 }
 
-func findOutdatedApps(client *cfclient.Client, apps []*resource.App, buildpacks map[string]resource.Buildpack) (outdatedApps []*resource.App, updatedBuildpacks []buildpackReleaseInfo) {
+func findOutdatedApps(ctx context.Context, client *cfclient.Client, apps []*resource.App, buildpacks map[string]resource.Buildpack) (outdatedApps []*resource.App, updatedBuildpacks []buildpackReleaseInfo) {
 	for _, app := range apps {
 		if app.State != "STARTED" {
 			log.Printf("App %s guid %s not in STARTED state\n", app.Name, app.GUID)
 			continue
 		}
-		ctx := context.Background()
 		droplet, foundDroplet := getCurrentDropletForApp(ctx, *app, client)
 		if !foundDroplet {
 			log.Printf("Unable to find current droplet for app %s guid %s. Safely skipping.\n", app.Name, app.GUID)
@@ -518,8 +525,8 @@ func sendNotifyEmailToUsers(users map[string][]notifyApp, updatedBuildpacks []bu
 		// Fill buffer with completed e-mail
 		err := templates.getNotifyEmail(body, notifyEmail{user, apps, isMultipleApp, updatedBuildpacks})
 		if err != nil {
-			log.Fatalf("Error getNotifyEmail for user %s err: %s", user, err)
-			return
+			log.Printf("Unable to render e-mail for %s: %s\n", user, err)
+			continue
 		}
 		// Send email
 		if !dryRun {

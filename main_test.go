@@ -667,7 +667,7 @@ func TestFindOutdatedApps(t *testing.T) {
 		buildpacks[bp.Name] = *bp
 	}
 
-	outdatedApps, updatedBuildpacks := findOutdatedApps(client, cfApps, buildpacks)
+	outdatedApps, updatedBuildpacks := findOutdatedApps(ctx, client, cfApps, buildpacks)
 	if len(outdatedApps) != 1 {
 		t.Fatalf("expected 1 outdated app, got %d", len(outdatedApps))
 	}
