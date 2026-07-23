@@ -203,13 +203,8 @@ func main() {
 	var (
 		cfg *cfconfig.Config
 	)
-	if os.Getenv("INSECURE") == "1" {
-		cfg, err = cfconfig.New(cfAPIConfig.API, cfconfig.ClientCredentials(cfAPIConfig.ClientID, cfAPIConfig.ClientSecret),
-			cfconfig.HttpClient(&http.Client{Timeout: 30 * time.Second}), cfconfig.SkipTLSValidation())
-	} else {
-		cfg, err = cfconfig.New(cfAPIConfig.API, cfconfig.ClientCredentials(cfAPIConfig.ClientID, cfAPIConfig.ClientSecret),
-			cfconfig.HttpClient(&http.Client{Timeout: 30 * time.Second}))
-	}
+	cfg, err = cfconfig.New(cfAPIConfig.API, cfconfig.ClientCredentials(cfAPIConfig.ClientID, cfAPIConfig.ClientSecret),
+		cfconfig.HttpClient(&http.Client{Timeout: 30 * time.Second}))
 	if err != nil {
 		log.Fatalf("Unable to create config. Error: %s", err.Error())
 	}
