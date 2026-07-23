@@ -72,11 +72,8 @@ These tests provide a good idea of how everything will work once in use. You sho
 
 Integration Tests can be found in the `integration` folder
 
-If you want to run it locally with `pcfdev` and `docker`, create an empty starting state file and pass the local-only
-`INSECURE=1` toggle explicitly:
-`printf '{}' > /tmp/buildpack-notify-state.json && docker-compose up -d && TEST_PASS="notarealpass" SMTP_FROM="no-reply@cloud.gov" SMTP_PASSWORD="" SMTP_PORT="2525" SMTP_USER="" SMTP_HOST="localhost" CF_API="https://api.local.pcfdev.io" CLIENT_ID="buildpack-notify" CLIENT_SECRET="notarealsecret" INSECURE="1" IN_STATE="/tmp/buildpack-notify-state.json" OUT_STATE="/tmp/buildpack-notify-state-out.json" CF_USER="admin" CF_PASS="admin" CF_API_SSL_FLAG="--skip-ssl-validation" ./integration/test.sh`
-
-`INSECURE=1` is intended for local development only. CI does not set it in `ci/pipeline.yml`.
+If you want to run it locally with `pcfdev` and `docker`, create an empty starting state file 
+`printf '{}' > /tmp/buildpack-notify-state.json && docker-compose up -d && TEST_PASS="notarealpass" SMTP_FROM="no-reply@cloud.gov" SMTP_PASSWORD="" SMTP_PORT="2525" SMTP_USER="" SMTP_HOST="localhost" CF_API="https://api.local.pcfdev.io" CLIENT_ID="buildpack-notify" CLIENT_SECRET="notarealsecret" IN_STATE="/tmp/buildpack-notify-state.json" OUT_STATE="/tmp/buildpack-notify-state-out.json" CF_USER="admin" CF_PASS="admin" CF_API_SSL_FLAG="--skip-ssl-validation" ./integration/test.sh`
 
 You can check out the e-mail by navigating to http://localhost:8025
 
