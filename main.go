@@ -200,10 +200,7 @@ func main() {
 	if err != nil {
 		log.Fatalf("Unable to initialize templates: %s", err)
 	}
-	var (
-		cfg *cfconfig.Config
-	)
-	cfg, err = cfconfig.New(cfAPIConfig.API, cfconfig.ClientCredentials(cfAPIConfig.ClientID, cfAPIConfig.ClientSecret),
+	cfg, err := cfconfig.New(cfAPIConfig.API, cfconfig.ClientCredentials(cfAPIConfig.ClientID, cfAPIConfig.ClientSecret),
 		cfconfig.HttpClient(&http.Client{Timeout: 30 * time.Second}))
 	if err != nil {
 		log.Fatalf("Unable to create config. Error: %s", err.Error())
