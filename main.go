@@ -29,11 +29,11 @@ type Config struct {
 }
 
 type EmailConfig struct {
-	From     string `envconfig:"smtp_from" required:"true"`
-	Host     string `envconfig:"smtp_host" required:"true"`
-	Password string `envconfig:"smtp_password" required:"true"`
-	Port     string `envconfig:"smtp_port" required:"true"`
-	User     string `envconfig:"smtp_user" required:"true"`
+	From     string `envconfig:"smtp_from"`
+	Host     string `envconfig:"smtp_host"`
+	Password string `envconfig:"smtp_password"`
+	Port     string `envconfig:"smtp_port"`
+	User     string `envconfig:"smtp_user"`
 	Cert     string `envconfig:"smtp_cert"`
 }
 
@@ -200,23 +200,28 @@ func main() {
 	if err != nil {
 		log.Fatalf("Unable to initialize templates: %s", err)
 	}
+
 	cfg, err := cfconfig.New(cfAPIConfig.API, cfconfig.ClientCredentials(cfAPIConfig.ClientID, cfAPIConfig.ClientSecret),
 		cfconfig.HttpClient(&http.Client{Timeout: 30 * time.Second}))
 	if err != nil {
 		log.Fatalf("Unable to create config. Error: %s", err.Error())
 	}
+
 	client, err := cfclient.New(cfg)
 	if err != nil {
 		log.Fatalf("Unable to create client. Error: %s", err.Error())
 	}
+
 	log.Println("Calculating notifications to send for outdated buildpacks.")
 	mailer := InitSMTPMailer(emailConfig)
 	apps, buildpacks, state, err := getAppsAndBuildpacks(client, ctx, state)
 	if err != nil {
 		log.Fatalf("Unable to load apps and buildpacks: %s", err)
 	}
+
 	outdatedApps, updatedBuildpacks := findOutdatedApps(ctx, client, apps, buildpacks)
 	owners := findOwnersOfApps(ctx, outdatedApps, client)
+
 	log.Printf("Will notify %d owners of outdated apps.\n", len(owners))
 	updatedBuildpacks = deduplicateBuildpacks(updatedBuildpacks)
 	sendNotifyEmailToUsers(owners, updatedBuildpacks, templates, mailer, config.DryRun)
@@ -232,12 +237,10 @@ func main() {
 	}
 }
 
-func filterForNewlyUpdatedBuildpacks(
+func updateBuildpackState(
 	buildpacks []*resource.Buildpack,
 	state map[string]buildpackRecord,
-) ([]resource.Buildpack, map[string]buildpackRecord) {
-	var filteredBuildpacks []resource.Buildpack
-
+) map[string]buildpackRecord {
 	// For each buildpack:
 	// 1) If its GUID isn't in state -> it's new, keep it and record its UpdatedAt.
 	// 2) If it is in state and UpdatedAt is newer than what we stored, keep it and update state.
@@ -247,7 +250,6 @@ func filterForNewlyUpdatedBuildpacks(
 		storedBuildpack, found := state[buildpack.GUID]
 
 		if !found || buildpack.UpdatedAt.After(storedBuildpack.LastUpdatedAt) {
-			filteredBuildpacks = append(filteredBuildpacks, *buildpack)
 			state[buildpack.GUID] = buildpackRecord{LastUpdatedAt: buildpack.UpdatedAt}
 			continue
 		}
@@ -255,7 +257,7 @@ func filterForNewlyUpdatedBuildpacks(
 		log.Printf("Supported Buildpack %s has not been updated\n", buildpack.Name)
 	}
 
-	return filteredBuildpacks, state
+	return state
 }
 
 func getAppsAndBuildpacks(client *cfclient.Client, ctx context.Context, state map[string]buildpackRecord) ([]*resource.App, map[string]resource.Buildpack, map[string]buildpackRecord, error) {
@@ -268,12 +270,12 @@ func getAppsAndBuildpacks(client *cfclient.Client, ctx context.Context, state ma
 	if err != nil {
 		return nil, nil, state, err
 	}
-	filteredBuildpackList, state := filterForNewlyUpdatedBuildpacks(buildpackList, state)
+	state = updateBuildpackState(buildpackList, state)
 
 	// Create a map with the key being the buildpack name for quick comparison later on.
 	buildpacks := make(map[string]resource.Buildpack)
-	for _, buildpack := range filteredBuildpackList {
-		buildpacks[buildpack.Name] = buildpack
+	for _, buildpack := range buildpackList {
+		buildpacks[buildpack.Name] = *buildpack
 	}
 	return apps, buildpacks, state, nil
 }
@@ -482,11 +484,11 @@ func findOutdatedApps(ctx context.Context, client *cfclient.Client, apps []*reso
 		}
 		// If the app is using a supported buildpack, check if app is using an outdated buildpack.
 		if appIsOutdated := isDropletUsingOutdatedBuildpack(droplet, buildpack); !appIsOutdated {
-			log.Printf("App %s Guid %s | Buildpack %s not outdated\n", app.Name, app.GUID, buildpack.Name)
+			log.Printf("App %s GUID %s | Buildpack %s not outdated\n", app.Name, app.GUID, buildpack.Name)
 			continue
 		} else {
 			// If the app is using an outdated buildpack, get the buildpack information to pass along to the user.
-			log.Printf("App %s Guid %s | Buildpack %s is outdated\n", app.Name, app.GUID, buildpack.Name)
+			log.Printf("App %s GUID %s | Buildpack %s is outdated\n", app.Name, app.GUID, buildpack.Name)
 			buildpackReleaseURL := getBuildpackReleaseURL(buildpack.Name)
 			if buildpack.Filename == nil {
 				log.Printf("Buildpack %s guid %s missing filename metadata; skipping release info\n", buildpack.Name, buildpack.GUID)
