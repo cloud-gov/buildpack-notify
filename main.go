@@ -29,11 +29,11 @@ type Config struct {
 }
 
 type EmailConfig struct {
-	From     string `envconfig:"smtp_from"`
-	Host     string `envconfig:"smtp_host"`
-	Password string `envconfig:"smtp_password"`
-	Port     string `envconfig:"smtp_port"`
-	User     string `envconfig:"smtp_user"`
+	From     string `envconfig:"smtp_from" required:"true"`
+	Host     string `envconfig:"smtp_host" required:"true"`
+	Password string `envconfig:"smtp_password" required:"true"`
+	Port     string `envconfig:"smtp_port" required:"true"`
+	User     string `envconfig:"smtp_user" required:"true"`
 	Cert     string `envconfig:"smtp_cert"`
 }
 
