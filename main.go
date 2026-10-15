@@ -472,39 +472,43 @@ func findOutdatedApps(ctx context.Context, client *cfclient.Client, apps []*reso
 			log.Printf("App %s guid %s not in STARTED state\n", app.Name, app.GUID)
 			continue
 		}
+
 		droplet, foundDroplet := getCurrentDropletForApp(ctx, *app, client)
 		if !foundDroplet {
 			log.Printf("Unable to find current droplet for app %s guid %s. Safely skipping.\n", app.Name, app.GUID)
 			continue
 		}
+
 		yes, buildpack := isDropletUsingSupportedBuildpack(*droplet, buildpacks)
 		if !yes {
 			log.Printf("App %s guid %s not using supported buildpack\n", app.Name, app.GUID)
 			continue
 		}
+
 		// If the app is using a supported buildpack, check if app is using an outdated buildpack.
-		if appIsOutdated := isDropletUsingOutdatedBuildpack(droplet, buildpack); !appIsOutdated {
+		appIsOutdated := isDropletUsingOutdatedBuildpack(droplet, buildpack)
+		if !appIsOutdated {
 			log.Printf("App %s GUID %s | Buildpack %s not outdated\n", app.Name, app.GUID, buildpack.Name)
 			continue
-		} else {
-			// If the app is using an outdated buildpack, get the buildpack information to pass along to the user.
-			log.Printf("App %s GUID %s | Buildpack %s is outdated\n", app.Name, app.GUID, buildpack.Name)
-			buildpackReleaseURL := getBuildpackReleaseURL(buildpack.Name)
-			if buildpack.Filename == nil {
-				log.Printf("Buildpack %s guid %s missing filename metadata; skipping release info\n", buildpack.Name, buildpack.GUID)
-				continue
-			}
-			buildpackVersion := parseBuildpackVersion(*buildpack.Filename)
-			buildpackVersionURL := getBuildpackVersionURL(buildpackReleaseURL, buildpackVersion)
-
-			updatedBuildpack := buildpackReleaseInfo{
-				BuildpackName:    buildpack.Name,
-				BuildpackVersion: buildpackVersion,
-				BuildpackURL:     buildpackVersionURL,
-			}
-
-			updatedBuildpacks = append(updatedBuildpacks, updatedBuildpack)
 		}
+
+		// If the app is using an outdated buildpack, get the buildpack information to pass along to the user.
+		log.Printf("App %s GUID %s | Buildpack %s is outdated\n", app.Name, app.GUID, buildpack.Name)
+		buildpackReleaseURL := getBuildpackReleaseURL(buildpack.Name)
+		if buildpack.Filename == nil {
+			log.Printf("Buildpack %s guid %s missing filename metadata; skipping release info\n", buildpack.Name, buildpack.GUID)
+			continue
+		}
+		buildpackVersion := parseBuildpackVersion(*buildpack.Filename)
+		buildpackVersionURL := getBuildpackVersionURL(buildpackReleaseURL, buildpackVersion)
+
+		updatedBuildpack := buildpackReleaseInfo{
+			BuildpackName:    buildpack.Name,
+			BuildpackVersion: buildpackVersion,
+			BuildpackURL:     buildpackVersionURL,
+		}
+
+		updatedBuildpacks = append(updatedBuildpacks, updatedBuildpack)
 		outdatedApps = append(outdatedApps, app)
 	}
 	return
