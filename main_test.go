@@ -125,6 +125,11 @@ func TestIsDropletUsingSupportedBuildpack(t *testing.T) {
 			false,
 		},
 		{
+			"supported and unsupported buildpack",
+			resource.Droplet{Buildpacks: []resource.DetectedBuildpack{{Name: "python_buildpack"}, {Name: "custom_buildpack"}}},
+			true,
+		},
+		{
 			"empty buildpack name is ignored",
 			resource.Droplet{Buildpacks: []resource.DetectedBuildpack{{Name: ""}}},
 			false,
