@@ -89,14 +89,19 @@ func parseBuildpackVersion(buildpackFileName string) (string, error) {
 	// Buildpack filenames currently look like this: python_buildpack-cflinuxfs3-v1.7.43.zip
 	// "v1.7.43" is the version in this case.
 
-	match, err := regexp.Match("[a-z]+(_|-)buildpack(_|-)cflinuxfs[0-9]{1}(_|-)(v[0-9]+.[0-9]+.[0-9]+).zip", []byte(buildpackFileName))
-	if err != nil {
-		return "", err
-	}
-	if match {
+	buildpackZipFileRegex := regexp.MustCompile(`^[a-z]+(_|-)buildpack(_|-)cflinuxfs[0-9]{1}(_|-)(v[0-9]+.[0-9]+.[0-9]+).zip$`)
+	buildpackGitRepoRegex := regexp.MustCompile(`^https://github.com/cloudfoundry/[a-z]+-buildpack.git#(v[0-9]+.[0-9]+.[0-9]+)$`)
+
+	match := buildpackZipFileRegex.FindAllString(buildpackFileName, -1)
+	if len(match) > 0 {
 		fileNameParts := strings.Split(buildpackFileName, "-")
 		buildpackVersion := strings.ReplaceAll(fileNameParts[len(fileNameParts)-1], ".zip", "")
 		return buildpackVersion, nil
+	}
+
+	match = buildpackGitRepoRegex.FindAllString(buildpackFileName, -1)
+	if len(match) > 0 {
+		return match[0], nil
 	}
 
 	return "", fmt.Errorf("unexpected filename structure: %s", buildpackFileName)

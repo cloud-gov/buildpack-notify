@@ -79,6 +79,19 @@ func TestParseBuildpackVersionMoreDashes(t *testing.T) {
 	}
 }
 
+func TestParseBuildpackVersionGitRepo(t *testing.T) {
+	testBuildpackFileName := "https://github.com/cloudfoundry/python-buildpack.git#v1.8.38"
+	expectedBuildpackVersion := "v1.8.38"
+
+	buildpackVersion, err := parseBuildpackVersion(testBuildpackFileName)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if buildpackVersion != expectedBuildpackVersion {
+		t.Errorf("The buildpack version for %s was not parsed correctly; expected %s, got %s", testBuildpackFileName, expectedBuildpackVersion, buildpackVersion)
+	}
+}
+
 func TestBuildpackVersionURL(t *testing.T) {
 	testBuildpackReleaseURL := "https://github.com/cloudfoundry/python-buildpack/releases"
 	testBuildpackVersion := "v1.7.43"
