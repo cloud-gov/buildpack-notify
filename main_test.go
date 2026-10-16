@@ -57,8 +57,10 @@ func TestParseBuildpackVersion(t *testing.T) {
 	testBuildpackFileName := "python_buildpack-cflinuxfs3-v1.7.43.zip"
 	expectedBuildpackVersion := "v1.7.43"
 
-	buildpackVersion := parseBuildpackVersion(testBuildpackFileName)
-
+	buildpackVersion, err := parseBuildpackVersion(testBuildpackFileName)
+	if err != nil {
+		t.Fatal(err)
+	}
 	if buildpackVersion != expectedBuildpackVersion {
 		t.Errorf("The buildpack version for %s was not parsed correctly; expected %s", testBuildpackFileName, expectedBuildpackVersion)
 	}
@@ -68,8 +70,10 @@ func TestParseBuildpackVersionMoreDashes(t *testing.T) {
 	testBuildpackFileName := "php-buildpack-cflinuxfs3-v4.4.49.zip"
 	expectedBuildpackVersion := "v4.4.49"
 
-	buildpackVersion := parseBuildpackVersion(testBuildpackFileName)
-
+	buildpackVersion, err := parseBuildpackVersion(testBuildpackFileName)
+	if err != nil {
+		t.Fatal(err)
+	}
 	if buildpackVersion != expectedBuildpackVersion {
 		t.Errorf("The buildpack version for %s was not parsed correctly; expected %s", testBuildpackFileName, expectedBuildpackVersion)
 	}

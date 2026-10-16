@@ -84,14 +84,22 @@ func getBuildpackReleaseURL(buildpackName string) string {
 	return ""
 }
 
-func parseBuildpackVersion(buildpackFileName string) string {
+func parseBuildpackVersion(buildpackFileName string) (string, error) {
 	// Takes a buildpack file name and parses out the version number from it.
 	// Buildpack filenames currently look like this: python_buildpack-cflinuxfs3-v1.7.43.zip
 	// "v1.7.43" is the version in this case.
 
-	fileNameParts := strings.Split(buildpackFileName, "-")
-	buildpackVersion := strings.ReplaceAll(fileNameParts[len(fileNameParts)-1], ".zip", "")
-	return buildpackVersion
+	match, err := regexp.Match("[a-z]+(_|-)buildpack(_|-)cflinuxfs[0-9]{1}(_|-)(v[0-9]+.[0-9]+.[0-9]+).zip", []byte(buildpackFileName))
+	if err != nil {
+		return "", err
+	}
+	if match {
+		fileNameParts := strings.Split(buildpackFileName, "-")
+		buildpackVersion := strings.ReplaceAll(fileNameParts[len(fileNameParts)-1], ".zip", "")
+		return buildpackVersion, nil
+	}
+
+	return "", fmt.Errorf("unexpected filename structure: %s", buildpackFileName)
 }
 
 func getBuildpackVersionURL(buildpackReleaseURL string, buildpackVersion string) string {
@@ -499,7 +507,11 @@ func findOutdatedApps(ctx context.Context, client *cfclient.Client, apps []*reso
 			log.Printf("Buildpack %s guid %s missing filename metadata; skipping release info\n", buildpack.Name, buildpack.GUID)
 			continue
 		}
-		buildpackVersion := parseBuildpackVersion(*buildpack.Filename)
+		buildpackVersion, err := parseBuildpackVersion(*buildpack.Filename)
+		if err != nil {
+			log.Printf("Error parsing buildpack version: %s", err)
+			continue
+		}
 		buildpackVersionURL := getBuildpackVersionURL(buildpackReleaseURL, buildpackVersion)
 
 		updatedBuildpack := buildpackReleaseInfo{
