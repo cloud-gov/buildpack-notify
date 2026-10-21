@@ -160,13 +160,21 @@ func findOutdatedApps(ctx context.Context, client *cfclient.Client, apps []*reso
 		}
 
 		for _, dropletBuildpack := range droplet.Buildpacks {
-			supported, supportedBuildpack := isBuildpackSupported(dropletBuildpack, systemBuildpacks)
+			supported, supportedBuildpackInfo := isBuildpackSupported(dropletBuildpack, systemBuildpacks)
 			if !supported {
 				continue
 			}
 
+			supportedBuildpack := supportedBuildpackInfo.buildpack
+
+			supportedBuildpackVersion, err := parseBuildpackVersion(*supportedBuildpack.Filename)
+			if err != nil {
+				log.Printf("Error parsing buildpack version: %s", err)
+				continue
+			}
+
 			// If the app is using a supported buildpack, check if app is using an outdated buildpack.
-			appIsOutdated := isDropletUsingOutdatedBuildpack(droplet, supportedBuildpack)
+			appIsOutdated := isDropletBuildpackOutdated(&dropletBuildpack, supportedBuildpackInfo.source, supportedBuildpackVersion)
 			if !appIsOutdated {
 				log.Printf("App %s GUID %s | Buildpack %s not outdated\n", app.Name, app.GUID, dropletBuildpack.Name)
 				continue
@@ -179,16 +187,12 @@ func findOutdatedApps(ctx context.Context, client *cfclient.Client, apps []*reso
 				log.Printf("Buildpack %s guid %s missing filename metadata; skipping release info\n", supportedBuildpack.Name, supportedBuildpack.GUID)
 				continue
 			}
-			buildpackVersion, err := parseBuildpackVersion(*supportedBuildpack.Filename)
-			if err != nil {
-				log.Printf("Error parsing buildpack version: %s", err)
-				continue
-			}
-			buildpackVersionURL := getBuildpackVersionURL(buildpackReleaseURL, buildpackVersion)
+
+			buildpackVersionURL := getBuildpackVersionURL(buildpackReleaseURL, supportedBuildpackVersion)
 
 			updatedBuildpack := buildpackReleaseInfo{
 				BuildpackName:    supportedBuildpack.Name,
-				BuildpackVersion: buildpackVersion,
+				BuildpackVersion: supportedBuildpackVersion,
 				BuildpackURL:     buildpackVersionURL,
 			}
 

@@ -21,6 +21,18 @@ type buildpackReleaseInfo struct {
 	BuildpackURL     string
 }
 
+type buildpackSource int
+
+const (
+	BUILDPACK_SYSTEM buildpackSource = iota
+	BUILDPACK_GIT_PINNED
+)
+
+type buildpackInfo struct {
+	source    buildpackSource
+	buildpack *resource.Buildpack
+}
+
 func getSupportedBuildpackFilenameRegexes() []*regexp.Regexp {
 	return []*regexp.Regexp{buildpackZipFileRegex, buildpackGitRepoRegex}
 }
@@ -35,6 +47,14 @@ func getPinnedGitRepoBuildpackName(buildpackFilename string) string {
 		return ""
 	}
 	return strings.ReplaceAll(match[len(match)-2], "-", "_")
+}
+
+func getPinnedGitRepoBuildpackVersion(buildpackFilename string) string {
+	match := buildpackGitRepoRegex.FindStringSubmatch(buildpackFilename)
+	if len(match) == 0 {
+		return ""
+	}
+	return match[len(match)-1]
 }
 
 func getBuildpackReleaseURL(buildpackName string) string {
@@ -122,33 +142,51 @@ func deduplicateBuildpacks(allBuildpacks []buildpackReleaseInfo) []buildpackRele
 }
 
 // isBuildpackSupported checks if the droplet buildpack is included in the system buildpacks
-func isBuildpackSupported(detectedBuildpack resource.DetectedBuildpack, systemBuildpacks map[string]resource.Buildpack) (bool, *resource.Buildpack) {
+func isBuildpackSupported(detectedBuildpack resource.DetectedBuildpack, systemBuildpacks map[string]resource.Buildpack) (bool, *buildpackInfo) {
+	var source buildpackSource
 	buildpackName := detectedBuildpack.Name
+
 	isUsingPinnedBuildpack := isBuildpackFilenamePinnedToGitRepo(buildpackName)
 	if isUsingPinnedBuildpack {
 		buildpackName = getPinnedGitRepoBuildpackName(buildpackName)
+		source = BUILDPACK_GIT_PINNED
 	}
 
 	if buildpackName == "" {
-		return false, &resource.Buildpack{}
+		return false, &buildpackInfo{}
 	}
 
-	buildpack, isUsingSystemBuildpack := systemBuildpacks[buildpackName]
-	isSupported := isUsingSystemBuildpack || isUsingPinnedBuildpack
-	return isSupported, &buildpack
+	buildpack, found := systemBuildpacks[buildpackName]
+	if !found {
+		return false, &buildpackInfo{}
+	}
+
+	return found, &buildpackInfo{
+		source:    source,
+		buildpack: &buildpack,
+	}
 }
 
-func isDropletUsingOutdatedBuildpack(
-	droplet *resource.Droplet,
-	buildpack *resource.Buildpack,
+func isDropletBuildpackOutdated(
+	dropletBuildpack *resource.DetectedBuildpack,
+	supportedBuildpackSource buildpackSource,
+	supportedBuildpackVersion string,
 ) bool {
-	if droplet == nil || buildpack == nil {
+	if dropletBuildpack == nil || supportedBuildpackVersion == "" {
 		return false
 	}
 
-	// for _, dropletBp := range(droplet.Buildpacks) {
-	// 	if dropletBp.Version
-	// }
+	var (
+		dropletBuildpackVersion string
+	)
 
-	return droplet.CreatedAt.Before(buildpack.UpdatedAt)
+	switch supportedBuildpackSource {
+	case BUILDPACK_SYSTEM:
+		dropletBuildpackVersion = fmt.Sprintf("v%s", dropletBuildpack.Version)
+	case BUILDPACK_GIT_PINNED:
+		dropletBuildpackVersion = getPinnedGitRepoBuildpackVersion(dropletBuildpack.Name)
+	}
+
+	res := semver.Compare(dropletBuildpackVersion, supportedBuildpackVersion)
+	return res == -1
 }

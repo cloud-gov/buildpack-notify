@@ -2,7 +2,6 @@ package main
 
 import (
 	"testing"
-	"time"
 
 	"github.com/cloudfoundry/go-cfclient/v3/resource"
 	"github.com/stretchr/testify/assert"
@@ -119,59 +118,65 @@ func TestIsBuildpackSupported(t *testing.T) {
 		name             string
 		dropletBuildpack resource.DetectedBuildpack
 		expectSupported  bool
-		expected         *resource.Buildpack
+		expected         *buildpackInfo
 	}{
 		{
 			"supported buildpack",
 			resource.DetectedBuildpack{Name: "python_buildpack"},
 			true,
-			&resource.Buildpack{
-				Name: "python_buildpack",
+			&buildpackInfo{
+				source: BUILDPACK_SYSTEM,
+				buildpack: &resource.Buildpack{
+					Name: "python_buildpack",
+				},
 			},
 		},
 		{
 			"unsupported buildpack",
 			resource.DetectedBuildpack{Name: "custom_buildpack"},
 			false,
-			&resource.Buildpack{},
+			&buildpackInfo{},
 		},
 		{
 			"empty buildpack name is ignored",
 			resource.DetectedBuildpack{Name: ""},
 			false,
-			&resource.Buildpack{},
+			&buildpackInfo{},
 		},
 		{
 			"no buildpacks",
 			resource.DetectedBuildpack{},
 			false,
-			&resource.Buildpack{},
+			&buildpackInfo{},
 		},
 		{
 			"pinned git repo buildpack",
 			resource.DetectedBuildpack{Name: "https://github.com/cloudfoundry/python-buildpack.git#v1.8.38"},
 			true,
-			&resource.Buildpack{
-				Name: "python_buildpack",
+			&buildpackInfo{
+				source: BUILDPACK_GIT_PINNED,
+				buildpack: &resource.Buildpack{
+					Name: "python_buildpack",
+				},
 			},
 		},
 		{
 			"invalid git repo pinned version",
 			resource.DetectedBuildpack{Name: "https://github.com/cloudfoundry/python-buildpack.git#v1.8"},
 			false,
-			&resource.Buildpack{},
+			&buildpackInfo{},
 		},
 		{
 			"pinned git repo sha",
 			resource.DetectedBuildpack{Name: "https://github.com/cloudfoundry/python-buildpack.git#abc1234"},
 			false,
-			&resource.Buildpack{},
+			&buildpackInfo{},
 		},
 		{
 			"invalid git repo",
 			resource.DetectedBuildpack{Name: "https://gitlab.com/cloudfoundry/python-buildpack.git#v1.8.38"},
 			false,
-			&resource.Buildpack{},
+			&buildpackInfo{},
 		},
 	}
 	for _, tc := range testCases {
@@ -184,43 +189,45 @@ func TestIsBuildpackSupported(t *testing.T) {
 }
 
 func TestIsDropletUsingOutdatedBuildpack(t *testing.T) {
-	older := time.Date(2020, 1, 1, 0, 0, 0, 0, time.UTC)
-	newer := time.Date(2021, 1, 1, 0, 0, 0, 0, time.UTC)
-
 	testCases := []struct {
-		name      string
-		droplet   *resource.Droplet
-		buildpack *resource.Buildpack
-		expected  bool
+		name                      string
+		dropletBuildpack          *resource.DetectedBuildpack
+		source                    buildpackSource
+		supportedBuildpackVersion string
+		expected                  bool
 	}{
 		{
 			"droplet older than buildpack -> outdated",
-			&resource.Droplet{Resource: resource.Resource{CreatedAt: older}},
-			&resource.Buildpack{Resource: resource.Resource{UpdatedAt: newer}},
+			&resource.DetectedBuildpack{Name: "python_buildpack", Version: "1.2.3"},
+			BUILDPACK_SYSTEM,
+			"v1.2.4",
 			true,
 		},
 		{
 			"droplet newer than buildpack -> not outdated",
-			&resource.Droplet{Resource: resource.Resource{CreatedAt: newer}},
-			&resource.Buildpack{Resource: resource.Resource{UpdatedAt: older}},
+			&resource.DetectedBuildpack{Name: "python_buildpack", Version: "1.2.3"},
+			BUILDPACK_SYSTEM,
+			"v1.2.3",
 			false,
 		},
 		{
 			"nil droplet -> not outdated",
 			nil,
-			&resource.Buildpack{Resource: resource.Resource{UpdatedAt: newer}},
+			BUILDPACK_SYSTEM,
+			"v1.2.3",
 			false,
 		},
 		{
-			"nil buildpack -> not outdated",
-			&resource.Droplet{Resource: resource.Resource{CreatedAt: older}},
-			nil,
+			"empty buildpack version -> not outdated",
+			&resource.DetectedBuildpack{Name: "python_buildpack", Version: "1.2.3"},
+			BUILDPACK_SYSTEM,
+			"",
 			false,
 		},
 	}
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			if got := isDropletUsingOutdatedBuildpack(tc.droplet, tc.buildpack); got != tc.expected {
+			if got := isDropletBuildpackOutdated(tc.dropletBuildpack, tc.source, tc.supportedBuildpackVersion); got != tc.expected {
 				t.Errorf("Expected %v, got %v", tc.expected, got)
 			}
 		})
