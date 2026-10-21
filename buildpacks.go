@@ -121,8 +121,7 @@ func deduplicateBuildpacks(allBuildpacks []buildpackReleaseInfo) []buildpackRele
 	return deduplicated
 }
 
-// isDropletUsingSupportedBuildpack checks the buildpacks the droplet is using and comparing to see if one of them
-// is a provided system buildpack.
+// isBuildpackSupported checks if the droplet buildpack is included in the system buildpacks
 func isBuildpackSupported(detectedBuildpack resource.DetectedBuildpack, systemBuildpacks map[string]resource.Buildpack) (bool, *resource.Buildpack) {
 	buildpackName := detectedBuildpack.Name
 	isUsingPinnedBuildpack := isBuildpackFilenamePinnedToGitRepo(buildpackName)

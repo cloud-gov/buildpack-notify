@@ -155,6 +155,24 @@ func TestIsBuildpackSupported(t *testing.T) {
 				Name: "python_buildpack",
 			},
 		},
+		{
+			"invalid git repo pinned version",
+			resource.DetectedBuildpack{Name: "https://github.com/cloudfoundry/python-buildpack.git#v1.8"},
+			false,
+			&resource.Buildpack{},
+		},
+		{
+			"pinned git repo sha",
+			resource.DetectedBuildpack{Name: "https://github.com/cloudfoundry/python-buildpack.git#abc1234"},
+			false,
+			&resource.Buildpack{},
+		},
+		{
+			"invalid git repo",
+			resource.DetectedBuildpack{Name: "https://gitlab.com/cloudfoundry/python-buildpack.git#v1.8.38"},
+			false,
+			&resource.Buildpack{},
+		},
 	}
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
