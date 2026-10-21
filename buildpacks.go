@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"regexp"
+	"strings"
 
 	"github.com/cloudfoundry/go-cfclient/v3/resource"
 	"golang.org/x/mod/semver"
@@ -11,7 +12,7 @@ import (
 
 var (
 	buildpackZipFileRegex = regexp.MustCompile(`^[a-z]+(_|-)buildpack(_|-)cflinuxfs[0-9]{1}(_|-)(v[0-9]+.[0-9]+.[0-9]+).zip$`)
-	buildpackGitRepoRegex = regexp.MustCompile(`^https://github.com/cloudfoundry/[a-z]+-buildpack.git#(v[0-9]+.[0-9]+.[0-9]+)$`)
+	buildpackGitRepoRegex = regexp.MustCompile(`^https://github.com/cloudfoundry/([a-z]+-buildpack).git#(v[0-9]+.[0-9]+.[0-9]+)$`)
 )
 
 type buildpackReleaseInfo struct {
@@ -22,6 +23,18 @@ type buildpackReleaseInfo struct {
 
 func getSupportedBuildpackFilenameRegexes() []*regexp.Regexp {
 	return []*regexp.Regexp{buildpackZipFileRegex, buildpackGitRepoRegex}
+}
+
+func isBuildpackFilenamePinnedToGitRepo(buildpackFilename string) bool {
+	return buildpackGitRepoRegex.Match([]byte(buildpackFilename))
+}
+
+func getPinnedGitRepoBuildpackName(buildpackFilename string) string {
+	match := buildpackGitRepoRegex.FindStringSubmatch(buildpackFilename)
+	if len(match) == 0 {
+		return ""
+	}
+	return strings.ReplaceAll(match[len(match)-2], "-", "_")
 }
 
 func getBuildpackReleaseURL(buildpackName string) string {
@@ -110,13 +123,20 @@ func deduplicateBuildpacks(allBuildpacks []buildpackReleaseInfo) []buildpackRele
 
 // isDropletUsingSupportedBuildpack checks the buildpacks the droplet is using and comparing to see if one of them
 // is a provided system buildpack.
-func isDropletUsingSupportedBuildpack(droplet resource.Droplet, systemBuildpacks map[string]resource.Buildpack) (bool, *resource.Buildpack) {
-	for _, dropletBuildpack := range droplet.Buildpacks {
-		if buildpack, found := systemBuildpacks[dropletBuildpack.Name]; found && dropletBuildpack.Name != "" {
-			return true, &buildpack
-		}
+func isBuildpackSupported(detectedBuildpack resource.DetectedBuildpack, systemBuildpacks map[string]resource.Buildpack) (bool, *resource.Buildpack) {
+	buildpackName := detectedBuildpack.Name
+	isUsingPinnedBuildpack := isBuildpackFilenamePinnedToGitRepo(buildpackName)
+	if isUsingPinnedBuildpack {
+		buildpackName = getPinnedGitRepoBuildpackName(buildpackName)
 	}
-	return false, nil
+
+	if buildpackName == "" {
+		return false, &resource.Buildpack{}
+	}
+
+	buildpack, isUsingSystemBuildpack := systemBuildpacks[buildpackName]
+	isSupported := isUsingSystemBuildpack || isUsingPinnedBuildpack
+	return isSupported, &buildpack
 }
 
 func isDropletUsingOutdatedBuildpack(

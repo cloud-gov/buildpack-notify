@@ -146,7 +146,7 @@ func filterForValidEmailUsernames(users []*resource.User, app *resource.App) []*
 	return filteredUsers
 }
 
-func findOutdatedApps(ctx context.Context, client *cfclient.Client, apps []*resource.App, buildpacks map[string]resource.Buildpack) (outdatedApps []*resource.App, updatedBuildpacks []buildpackReleaseInfo) {
+func findOutdatedApps(ctx context.Context, client *cfclient.Client, apps []*resource.App, systemBuildpacks map[string]resource.Buildpack) (outdatedApps []*resource.App, updatedBuildpacks []buildpackReleaseInfo) {
 	for _, app := range apps {
 		if app.State != "STARTED" {
 			log.Printf("App %s guid %s not in STARTED state\n", app.Name, app.GUID)
@@ -159,41 +159,42 @@ func findOutdatedApps(ctx context.Context, client *cfclient.Client, apps []*reso
 			continue
 		}
 
-		yes, buildpack := isDropletUsingSupportedBuildpack(*droplet, buildpacks)
-		if !yes {
-			log.Printf("App %s guid %s not using supported buildpack\n", app.Name, app.GUID)
-			continue
-		}
+		for _, dropletBuildpack := range droplet.Buildpacks {
+			supported, supportedBuildpack := isBuildpackSupported(dropletBuildpack, systemBuildpacks)
+			if !supported {
+				continue
+			}
 
-		// If the app is using a supported buildpack, check if app is using an outdated buildpack.
-		appIsOutdated := isDropletUsingOutdatedBuildpack(droplet, buildpack)
-		if !appIsOutdated {
-			log.Printf("App %s GUID %s | Buildpack %s not outdated\n", app.Name, app.GUID, buildpack.Name)
-			continue
-		}
+			// If the app is using a supported buildpack, check if app is using an outdated buildpack.
+			appIsOutdated := isDropletUsingOutdatedBuildpack(droplet, supportedBuildpack)
+			if !appIsOutdated {
+				log.Printf("App %s GUID %s | Buildpack %s not outdated\n", app.Name, app.GUID, dropletBuildpack.Name)
+				continue
+			}
 
-		// If the app is using an outdated buildpack, get the buildpack information to pass along to the user.
-		log.Printf("App %s GUID %s | Buildpack %s is outdated\n", app.Name, app.GUID, buildpack.Name)
-		buildpackReleaseURL := getBuildpackReleaseURL(buildpack.Name)
-		if buildpack.Filename == nil {
-			log.Printf("Buildpack %s guid %s missing filename metadata; skipping release info\n", buildpack.Name, buildpack.GUID)
-			continue
-		}
-		buildpackVersion, err := parseBuildpackVersion(*buildpack.Filename)
-		if err != nil {
-			log.Printf("Error parsing buildpack version: %s", err)
-			continue
-		}
-		buildpackVersionURL := getBuildpackVersionURL(buildpackReleaseURL, buildpackVersion)
+			// If the app is using an outdated buildpack, get the buildpack information to pass along to the user.
+			log.Printf("App %s GUID %s | Buildpack %s is outdated\n", app.Name, app.GUID, supportedBuildpack.Name)
+			buildpackReleaseURL := getBuildpackReleaseURL(supportedBuildpack.Name)
+			if supportedBuildpack.Filename == nil {
+				log.Printf("Buildpack %s guid %s missing filename metadata; skipping release info\n", supportedBuildpack.Name, supportedBuildpack.GUID)
+				continue
+			}
+			buildpackVersion, err := parseBuildpackVersion(*supportedBuildpack.Filename)
+			if err != nil {
+				log.Printf("Error parsing buildpack version: %s", err)
+				continue
+			}
+			buildpackVersionURL := getBuildpackVersionURL(buildpackReleaseURL, buildpackVersion)
 
-		updatedBuildpack := buildpackReleaseInfo{
-			BuildpackName:    buildpack.Name,
-			BuildpackVersion: buildpackVersion,
-			BuildpackURL:     buildpackVersionURL,
-		}
+			updatedBuildpack := buildpackReleaseInfo{
+				BuildpackName:    supportedBuildpack.Name,
+				BuildpackVersion: buildpackVersion,
+				BuildpackURL:     buildpackVersionURL,
+			}
 
-		updatedBuildpacks = append(updatedBuildpacks, updatedBuildpack)
-		outdatedApps = append(outdatedApps, app)
+			updatedBuildpacks = append(updatedBuildpacks, updatedBuildpack)
+			outdatedApps = append(outdatedApps, app)
+		}
 	}
 	return
 }

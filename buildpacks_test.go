@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/cloudfoundry/go-cfclient/v3/resource"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestBuildPackURLIsReturnedForSystemBuildPacks(t *testing.T) {
@@ -110,53 +111,56 @@ func TestBuildpackVersionURLWithBadVersion(t *testing.T) {
 	}
 }
 
-func TestIsDropletUsingSupportedBuildpack(t *testing.T) {
+func TestIsBuildpackSupported(t *testing.T) {
 	buildpacks := map[string]resource.Buildpack{
 		"python_buildpack": {Name: "python_buildpack"},
 	}
 	testCases := []struct {
-		name     string
-		droplet  resource.Droplet
-		expected bool
+		name             string
+		dropletBuildpack resource.DetectedBuildpack
+		expectSupported  bool
+		expected         *resource.Buildpack
 	}{
 		{
 			"supported buildpack",
-			resource.Droplet{Buildpacks: []resource.DetectedBuildpack{{Name: "python_buildpack"}}},
+			resource.DetectedBuildpack{Name: "python_buildpack"},
 			true,
+			&resource.Buildpack{
+				Name: "python_buildpack",
+			},
 		},
 		{
 			"unsupported buildpack",
-			resource.Droplet{Buildpacks: []resource.DetectedBuildpack{{Name: "custom_buildpack"}}},
+			resource.DetectedBuildpack{Name: "custom_buildpack"},
 			false,
-		},
-		{
-			"supported and unsupported buildpack",
-			resource.Droplet{Buildpacks: []resource.DetectedBuildpack{{Name: "python_buildpack"}, {Name: "custom_buildpack"}}},
-			true,
+			&resource.Buildpack{},
 		},
 		{
 			"empty buildpack name is ignored",
-			resource.Droplet{Buildpacks: []resource.DetectedBuildpack{{Name: ""}}},
+			resource.DetectedBuildpack{Name: ""},
 			false,
+			&resource.Buildpack{},
 		},
 		{
 			"no buildpacks",
-			resource.Droplet{},
+			resource.DetectedBuildpack{},
 			false,
+			&resource.Buildpack{},
+		},
+		{
+			"pinned git repo buildpack",
+			resource.DetectedBuildpack{Name: "https://github.com/cloudfoundry/python-buildpack.git#v1.8.38"},
+			true,
+			&resource.Buildpack{
+				Name: "python_buildpack",
+			},
 		},
 	}
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			found, bp := isDropletUsingSupportedBuildpack(tc.droplet, buildpacks)
-			if found != tc.expected {
-				t.Errorf("Expected %v, got %v", tc.expected, found)
-			}
-			if found && bp == nil {
-				t.Errorf("Expected a buildpack pointer when found")
-			}
-			if !found && bp != nil {
-				t.Errorf("Expected nil buildpack when not found")
-			}
+			isSupported, supportedBuildpack := isBuildpackSupported(tc.dropletBuildpack, buildpacks)
+			assert.Equal(t, isSupported, tc.expectSupported)
+			assert.Equal(t, supportedBuildpack, tc.expected)
 		})
 	}
 }
@@ -203,4 +207,16 @@ func TestIsDropletUsingOutdatedBuildpack(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestIsBuildpackFilenamePinnedToGitRepo(t *testing.T) {
+	assert.True(t, isBuildpackFilenamePinnedToGitRepo("https://github.com/cloudfoundry/python-buildpack.git#v1.8.38"))
+	assert.False(t, isBuildpackFilenamePinnedToGitRepo("foobar"))
+	assert.False(t, isBuildpackFilenamePinnedToGitRepo("php-buildpack-cflinuxfs3-v4.4.49.zip"))
+}
+
+func TestGetPinnedGitRepoBuildpackName(t *testing.T) {
+	assert.Equal(t, getPinnedGitRepoBuildpackName("https://github.com/cloudfoundry/python-buildpack.git#v1.8.38"), "python_buildpack")
+	assert.Equal(t, getPinnedGitRepoBuildpackName("https://github.com/cloudfoundry/foobar-buildpack.git#v1.2.3"), "foobar_buildpack")
+	assert.Equal(t, getPinnedGitRepoBuildpackName("php-buildpack-cflinuxfs3-v4.4.49.zip"), "")
 }
