@@ -9,10 +9,19 @@ import (
 	"golang.org/x/mod/semver"
 )
 
+var (
+	buildpackZipFileRegex = regexp.MustCompile(`^[a-z]+(_|-)buildpack(_|-)cflinuxfs[0-9]{1}(_|-)(v[0-9]+.[0-9]+.[0-9]+).zip$`)
+	buildpackGitRepoRegex = regexp.MustCompile(`^https://github.com/cloudfoundry/[a-z]+-buildpack.git#(v[0-9]+.[0-9]+.[0-9]+)$`)
+)
+
 type buildpackReleaseInfo struct {
 	BuildpackName    string
 	BuildpackVersion string
 	BuildpackURL     string
+}
+
+func getSupportedBuildpackFilenameRegexes() []*regexp.Regexp {
+	return []*regexp.Regexp{buildpackZipFileRegex, buildpackGitRepoRegex}
 }
 
 func getBuildpackReleaseURL(buildpackName string) string {
@@ -51,11 +60,7 @@ func parseBuildpackVersion(buildpackFileName string) (string, error) {
 	// Buildpack filenames currently look like this: python_buildpack-cflinuxfs3-v1.7.43.zip
 	// "v1.7.43" is the version in this case.
 
-	buildpackZipFileRegex := regexp.MustCompile(`^[a-z]+(_|-)buildpack(_|-)cflinuxfs[0-9]{1}(_|-)(v[0-9]+.[0-9]+.[0-9]+).zip$`)
-	buildpackGitRepoRegex := regexp.MustCompile(`^https://github.com/cloudfoundry/[a-z]+-buildpack.git#(v[0-9]+.[0-9]+.[0-9]+)$`)
-
-	supportedRegexes := []*regexp.Regexp{buildpackZipFileRegex, buildpackGitRepoRegex}
-	for _, regex := range supportedRegexes {
+	for _, regex := range getSupportedBuildpackFilenameRegexes() {
 		if regex.Match([]byte(buildpackFileName)) {
 			match := regex.FindStringSubmatch(buildpackFileName)
 			if len(match) == 0 {
@@ -105,9 +110,9 @@ func deduplicateBuildpacks(allBuildpacks []buildpackReleaseInfo) []buildpackRele
 
 // isDropletUsingSupportedBuildpack checks the buildpacks the droplet is using and comparing to see if one of them
 // is a provided system buildpack.
-func isDropletUsingSupportedBuildpack(droplet resource.Droplet, buildpacks map[string]resource.Buildpack) (bool, *resource.Buildpack) {
+func isDropletUsingSupportedBuildpack(droplet resource.Droplet, systemBuildpacks map[string]resource.Buildpack) (bool, *resource.Buildpack) {
 	for _, dropletBuildpack := range droplet.Buildpacks {
-		if buildpack, found := buildpacks[dropletBuildpack.Name]; found && dropletBuildpack.Name != "" {
+		if buildpack, found := systemBuildpacks[dropletBuildpack.Name]; found && dropletBuildpack.Name != "" {
 			return true, &buildpack
 		}
 	}
