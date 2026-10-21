@@ -8,3 +8,4 @@ vendor/
 ci/*.lock
 **/bin/dummy-app
 .idea/
+testdata/mail/notify/*.txt.returned
