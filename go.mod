@@ -1,12 +1,13 @@
 module github.com/cloud-gov/buildpack-notify
 
-go 1.25.11
+go 1.26.0
 
 require (
 	github.com/cloudfoundry/go-cfclient/v3 v3.0.0-beta.1
 	github.com/jordan-wright/email v4.0.1-0.20210109023952-943e75fe5223+incompatible
 	github.com/kelseyhightower/envconfig v1.4.0
 	github.com/stretchr/testify v1.11.1
+	golang.org/x/mod v0.42.0
 )
 
 require (

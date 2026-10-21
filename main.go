@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"log"
@@ -11,13 +12,13 @@ import (
 	"net/mail"
 	"os"
 	"regexp"
-	"strings"
 	"time"
 
 	cfclient "github.com/cloudfoundry/go-cfclient/v3/client"
 	cfconfig "github.com/cloudfoundry/go-cfclient/v3/config"
 	"github.com/cloudfoundry/go-cfclient/v3/resource"
 	"github.com/kelseyhightower/envconfig"
+	"golang.org/x/mod/semver"
 )
 
 // TODO: handle errors centrally.
@@ -92,19 +93,22 @@ func parseBuildpackVersion(buildpackFileName string) (string, error) {
 	buildpackZipFileRegex := regexp.MustCompile(`^[a-z]+(_|-)buildpack(_|-)cflinuxfs[0-9]{1}(_|-)(v[0-9]+.[0-9]+.[0-9]+).zip$`)
 	buildpackGitRepoRegex := regexp.MustCompile(`^https://github.com/cloudfoundry/[a-z]+-buildpack.git#(v[0-9]+.[0-9]+.[0-9]+)$`)
 
-	match := buildpackZipFileRegex.FindAllString(buildpackFileName, -1)
-	if len(match) > 0 {
-		fileNameParts := strings.Split(buildpackFileName, "-")
-		buildpackVersion := strings.ReplaceAll(fileNameParts[len(fileNameParts)-1], ".zip", "")
-		return buildpackVersion, nil
+	supportedRegexes := []*regexp.Regexp{buildpackZipFileRegex, buildpackGitRepoRegex}
+	for _, regex := range supportedRegexes {
+		if regex.Match([]byte(buildpackFileName)) {
+			match := regex.FindStringSubmatch(buildpackFileName)
+			if len(match) == 0 {
+				return "", errors.New("could not parse version")
+			}
+			version := match[len(match)-1]
+			if !semver.IsValid(version) {
+				return "", fmt.Errorf("%s is not a valid semantic version", version)
+			}
+			return version, nil
+		}
 	}
 
-	match = buildpackGitRepoRegex.FindAllString(buildpackFileName, -1)
-	if len(match) > 0 {
-		return match[0], nil
-	}
-
-	return "", fmt.Errorf("unexpected filename structure: %s", buildpackFileName)
+	return "", fmt.Errorf("unsupported filename: %s", buildpackFileName)
 }
 
 func getBuildpackVersionURL(buildpackReleaseURL string, buildpackVersion string) string {
@@ -475,6 +479,10 @@ func isDropletUsingOutdatedBuildpack(
 	if droplet == nil || buildpack == nil {
 		return false
 	}
+
+	// for _, dropletBp := range(droplet.Buildpacks) {
+	// 	if dropletBp.Version
+	// }
 
 	return droplet.CreatedAt.Before(buildpack.UpdatedAt)
 }
