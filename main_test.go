@@ -523,6 +523,8 @@ func TestFindOutdatedApps(t *testing.T) {
 	assert.Equal(t, 2, len(outdatedApps))
 	assert.Equal(t, "started-outdated", outdatedApps[0].Name)
 	assert.Equal(t, "outdated-pinned-git-version", outdatedApps[1].Name)
+	assert.True(t, outdatedApps[1].IsUsingPinnedGitBuildpack)
+	assert.Equal(t, "https://github.com/cloudfoundry/python-buildpack.git#v1.2.2", outdatedApps[1].PinnedGitBuildpackUrl)
 	assert.Equal(t, 2, len(updatedBuildpacks))
 	assert.Equal(t, "python_buildpack", updatedBuildpacks[0].BuildpackName)
 	assert.Equal(t, "v1.2.3", updatedBuildpacks[0].BuildpackVersion)
