@@ -11,8 +11,8 @@ import (
 )
 
 var (
-	buildpackZipFileRegex = regexp.MustCompile(`^([a-z]+(-)*)+(_|-)buildpack(_|-)cflinuxfs[0-9]{1}(_|-)(v[0-9]+.[0-9]+.[0-9]+).zip$`)
-	buildpackGitRepoRegex = regexp.MustCompile(`^https://github.com/cloudfoundry/([a-z]+-buildpack).git#(v[0-9]+.[0-9]+(.[0-9]+)?)$`)
+	buildpackZipFileRegex = regexp.MustCompile(`^([a-z]+(-)*)+(_|-)buildpack(_|-)cflinuxfs[0-9]{1}(_|-)(v[0-9]+\.[0-9]+\.[0-9]+).zip$`)
+	buildpackGitRepoRegex = regexp.MustCompile(`^https://github\.com/cloudfoundry/([a-z]+-buildpack)\.git#(v[0-9]+\.[0-9]+(\.[0-9]+)?)$`)
 )
 
 type buildpackReleaseInfo struct {
