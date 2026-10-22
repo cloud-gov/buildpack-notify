@@ -172,7 +172,6 @@ jobs:
       SMTP_PASSWORD: ((smtp-password-staging))
       SMTP_HOST: ((smtp-host-staging))
       SMTP_PORT: ((smtp-port-staging))
-      SMTP_CERT: ((smtp-cert-staging))
   - put: state-staging
     params:
       file: out-state/state.json
@@ -210,7 +209,6 @@ jobs:
       SMTP_PASSWORD: ((smtp-password-production))
       SMTP_HOST: ((smtp-host-production))
       SMTP_PORT: ((smtp-port-production))
-      SMTP_CERT: ((smtp-cert-production))
   - put: state-production
     params:
       file: out-state/state.json
