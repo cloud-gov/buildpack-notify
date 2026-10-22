@@ -1,7 +1,7 @@
 package main
 
 import (
-	"crypto/tls"
+	"fmt"
 	"net/smtp"
 
 	"github.com/jordan-wright/email"
@@ -14,7 +14,6 @@ type Mailer interface {
 
 // InitSMTPMailer creates a new SMTP Mailer
 func InitSMTPMailer(config EmailConfig) Mailer {
-
 	return &smtpMailer{
 		smtpHost: config.Host,
 		smtpPort: config.Port,
@@ -25,17 +24,16 @@ func InitSMTPMailer(config EmailConfig) Mailer {
 }
 
 type smtpMailer struct {
-	smtpHost  string
-	smtpPort  string
-	smtpUser  string
-	smtpPass  string
-	smtpFrom  string
-	tlsConfig *tls.Config
+	smtpHost string
+	smtpPort string
+	smtpUser string
+	smtpPass string
+	smtpFrom string
 }
 
 func (s *smtpMailer) SendEmail(emailAddress, subject string, body []byte) error {
 	e := email.NewEmail()
-	e.From = "cloud.gov <" + s.smtpFrom + ">"
+	e.From = fmt.Sprintf("<buildpack-notifier@%s>", s.smtpFrom)
 	e.To = []string{" <" + emailAddress + ">"}
 	e.Text = body
 	e.Subject = subject
@@ -43,8 +41,5 @@ func (s *smtpMailer) SendEmail(emailAddress, subject string, body []byte) error 
 	addr := s.smtpHost + ":" + s.smtpPort
 	auth := smtp.PlainAuth("", s.smtpUser, s.smtpPass, s.smtpHost)
 
-	if s.tlsConfig != nil {
-		return e.SendWithTLS(addr, auth, s.tlsConfig)
-	}
 	return e.Send(addr, auth)
 }
