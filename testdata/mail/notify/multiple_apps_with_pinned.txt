@@ -14,9 +14,9 @@ perform the upgrade if you have compliance requirements for redeployment operati
 You can restage your application(s) by opening the command line and entering
 the following commands:
 
-  Note: The my-drupal-app application is pinned to an older version of the buildpack: https://github.com/cloudfoundry/php-buildpack.git#v1.2.2.
-  Please update the application manifest to use the system buildpack php_buildpack
-  before restaging your application.
+  **Note: The my-drupal-app application is pinned to an older version of the buildpack:
+  https://github.com/cloudfoundry/php-buildpack.git#v1.2.2. Please update the application
+  manifest to use the system buildpack php_buildpack before restaging your application.**
 
   cf target -o sandbox -s dev ; cf restage --strategy rolling my-drupal-app
 
