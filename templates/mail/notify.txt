@@ -15,6 +15,12 @@ You can restage your application(s) by opening the command line and entering
 the following commands:
 
 {{range .Apps}}
+{{ if .IsUsingPinnedGitBuildpack }}
+  Note: The application is pinned to an older version of the buildpack: .PinnedGitBuildpackUrl.
+  Please update the application manifest to use the system buildpack {{.SystemBuildpackName}}
+  before restaging your application.
+{{ end }}
+
   cf target -o {{ .OrgName }} -s {{ .SpaceName }} ; cf restage --strategy rolling {{.Name}}
 {{end}}
 

@@ -28,6 +28,7 @@ type notifyApp struct {
 	SpaceGUID                 string
 	IsUsingPinnedGitBuildpack bool
 	PinnedGitBuildpackUrl     string
+	SystemBuildpackName       string
 	Name                      string
 	SpaceName                 string
 	OrgName                   string

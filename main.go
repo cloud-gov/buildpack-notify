@@ -184,9 +184,10 @@ func findOutdatedApps(ctx context.Context, client *cfclient.Client, apps []*reso
 			updatedBuildpacks = append(updatedBuildpacks, *buildpackReleaseInfo)
 
 			appInfo := notifyApp{
-				GUID:      app.GUID,
-				Name:      app.Name,
-				SpaceGUID: app.Relationships.Space.Data.GUID,
+				GUID:                app.GUID,
+				Name:                app.Name,
+				SpaceGUID:           app.Relationships.Space.Data.GUID,
+				SystemBuildpackName: supportedBuildpack.Name,
 			}
 
 			if buildpackSource == BUILDPACK_GIT_PINNED {
