@@ -49,22 +49,25 @@ func TestParseSystemBuildpackVersion(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if buildpackVersion != expectedBuildpackVersion {
-		t.Errorf("The buildpack version for %s was not parsed correctly; expected %s", testBuildpackFileName, expectedBuildpackVersion)
-	}
-}
+	assert.Equal(t, expectedBuildpackVersion, buildpackVersion)
 
-func TestParseSystemBuildpackVersionMoreDashes(t *testing.T) {
-	testBuildpackFileName := "php-buildpack-cflinuxfs3-v4.4.49.zip"
-	expectedBuildpackVersion := "v4.4.49"
+	testBuildpackFileName = "dotnet-core_buildpack-cflinuxfs5-v2.4.52.zip"
+	expectedBuildpackVersion = "v2.4.52"
 
-	buildpackVersion, err := parseSystemBuildpackVersion(testBuildpackFileName)
+	buildpackVersion, err = parseSystemBuildpackVersion(testBuildpackFileName)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if buildpackVersion != expectedBuildpackVersion {
-		t.Errorf("The buildpack version for %s was not parsed correctly; expected %s", testBuildpackFileName, expectedBuildpackVersion)
+	assert.Equal(t, expectedBuildpackVersion, buildpackVersion)
+
+	testBuildpackFileName = "php-buildpack-cflinuxfs3-v4.4.49.zip"
+	expectedBuildpackVersion = "v4.4.49"
+
+	buildpackVersion, err = parseSystemBuildpackVersion(testBuildpackFileName)
+	if err != nil {
+		t.Fatal(err)
 	}
+	assert.Equal(t, expectedBuildpackVersion, buildpackVersion)
 }
 
 func TestBuildpackVersionURL(t *testing.T) {
