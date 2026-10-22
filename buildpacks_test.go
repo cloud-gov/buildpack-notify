@@ -126,7 +126,7 @@ func TestIsBuildpackSupported(t *testing.T) {
 			true,
 			&buildpackInfo{
 				source: BUILDPACK_SYSTEM,
-				buildpack: &resource.Buildpack{
+				supportedBuildpack: &resource.Buildpack{
 					Name: "python_buildpack",
 				},
 			},
@@ -155,7 +155,7 @@ func TestIsBuildpackSupported(t *testing.T) {
 			true,
 			&buildpackInfo{
 				source: BUILDPACK_GIT_PINNED,
-				buildpack: &resource.Buildpack{
+				supportedBuildpack: &resource.Buildpack{
 					Name: "python_buildpack",
 				},
 			},

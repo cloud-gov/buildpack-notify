@@ -28,9 +28,20 @@ const (
 	BUILDPACK_GIT_PINNED
 )
 
+func (s buildpackSource) String() string {
+	switch s {
+	case BUILDPACK_SYSTEM:
+		return "system"
+	case BUILDPACK_GIT_PINNED:
+		return "pinned git repo"
+	default:
+		return "unknown"
+	}
+}
+
 type buildpackInfo struct {
-	source    buildpackSource
-	buildpack *resource.Buildpack
+	source             buildpackSource
+	supportedBuildpack *resource.Buildpack
 }
 
 func getSupportedBuildpackFilenameRegexes() []*regexp.Regexp {
@@ -162,25 +173,23 @@ func isBuildpackSupported(detectedBuildpack resource.DetectedBuildpack, systemBu
 	}
 
 	return found, &buildpackInfo{
-		source:    source,
-		buildpack: &buildpack,
+		source:             source,
+		supportedBuildpack: &buildpack,
 	}
 }
 
 func isDropletBuildpackOutdated(
 	dropletBuildpack *resource.DetectedBuildpack,
-	supportedBuildpackSource buildpackSource,
+	dropletBuildpackSource buildpackSource,
 	supportedBuildpackVersion string,
 ) bool {
 	if dropletBuildpack == nil || supportedBuildpackVersion == "" {
 		return false
 	}
 
-	var (
-		dropletBuildpackVersion string
-	)
+	var dropletBuildpackVersion string
 
-	switch supportedBuildpackSource {
+	switch dropletBuildpackSource {
 	case BUILDPACK_SYSTEM:
 		dropletBuildpackVersion = fmt.Sprintf("v%s", dropletBuildpack.Version)
 	case BUILDPACK_GIT_PINNED:
@@ -189,4 +198,24 @@ func isDropletBuildpackOutdated(
 
 	res := semver.Compare(dropletBuildpackVersion, supportedBuildpackVersion)
 	return res == -1
+}
+
+func getBuildpackReleaseInfo(buildpack *resource.Buildpack) (*buildpackReleaseInfo, error) {
+	version, err := parseBuildpackVersion(*buildpack.Filename)
+	if err != nil {
+		return nil, err
+	}
+
+	buildpackReleaseURL := getBuildpackReleaseURL(buildpack.Name)
+	if buildpack.Filename == nil {
+		return nil, fmt.Errorf("Buildpack %s guid %s missing filename metadata; skipping release info\n", buildpack.Name, buildpack.GUID)
+	}
+
+	buildpackVersionURL := getBuildpackVersionURL(buildpackReleaseURL, version)
+
+	return &buildpackReleaseInfo{
+		BuildpackName:    buildpack.Name,
+		BuildpackVersion: version,
+		BuildpackURL:     buildpackVersionURL,
+	}, nil
 }

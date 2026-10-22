@@ -160,43 +160,30 @@ func findOutdatedApps(ctx context.Context, client *cfclient.Client, apps []*reso
 		}
 
 		for _, dropletBuildpack := range droplet.Buildpacks {
-			supported, supportedBuildpackInfo := isBuildpackSupported(dropletBuildpack, systemBuildpacks)
+			supported, buildpackInfo := isBuildpackSupported(dropletBuildpack, systemBuildpacks)
 			if !supported {
 				continue
 			}
 
-			supportedBuildpack := supportedBuildpackInfo.buildpack
+			supportedBuildpack := buildpackInfo.supportedBuildpack
 
-			supportedBuildpackVersion, err := parseBuildpackVersion(*supportedBuildpack.Filename)
+			buildpackReleaseInfo, err := getBuildpackReleaseInfo(supportedBuildpack)
 			if err != nil {
-				log.Printf("Error parsing buildpack version: %s", err)
+				log.Printf("Error getting buildpack release info: %s", err)
 				continue
 			}
 
 			// If the app is using a supported buildpack, check if app is using an outdated buildpack.
-			appIsOutdated := isDropletBuildpackOutdated(&dropletBuildpack, supportedBuildpackInfo.source, supportedBuildpackVersion)
+			appIsOutdated := isDropletBuildpackOutdated(&dropletBuildpack, buildpackInfo.source, buildpackReleaseInfo.BuildpackVersion)
 			if !appIsOutdated {
 				log.Printf("App %s GUID %s | Buildpack %s not outdated\n", app.Name, app.GUID, dropletBuildpack.Name)
 				continue
 			}
 
 			// If the app is using an outdated buildpack, get the buildpack information to pass along to the user.
-			log.Printf("App %s GUID %s | Buildpack %s is outdated\n", app.Name, app.GUID, supportedBuildpack.Name)
-			buildpackReleaseURL := getBuildpackReleaseURL(supportedBuildpack.Name)
-			if supportedBuildpack.Filename == nil {
-				log.Printf("Buildpack %s guid %s missing filename metadata; skipping release info\n", supportedBuildpack.Name, supportedBuildpack.GUID)
-				continue
-			}
+			log.Printf("App %s GUID %s | Buildpack %s with source %s is outdated\n", app.Name, app.GUID, supportedBuildpack.Name, buildpackInfo.source)
 
-			buildpackVersionURL := getBuildpackVersionURL(buildpackReleaseURL, supportedBuildpackVersion)
-
-			updatedBuildpack := buildpackReleaseInfo{
-				BuildpackName:    supportedBuildpack.Name,
-				BuildpackVersion: supportedBuildpackVersion,
-				BuildpackURL:     buildpackVersionURL,
-			}
-
-			updatedBuildpacks = append(updatedBuildpacks, updatedBuildpack)
+			updatedBuildpacks = append(updatedBuildpacks, *buildpackReleaseInfo)
 			outdatedApps = append(outdatedApps, app)
 		}
 	}
