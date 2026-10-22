@@ -37,7 +37,7 @@ func initTemplates() (*Templates, error) {
 // given the basePath of where to look.
 func findTemplates() map[string][]string {
 	return map[string][]string{
-		notifyTemplate: []string{filepath.Join("templates", "mail", "notify.txt")},
+		notifyTemplate: {filepath.Join("templates", "mail", "notify.txt")},
 	}
 }
 
@@ -48,21 +48,11 @@ func (t *Templates) getTemplate(templateKey string) (*template.Template, error) 
 	return nil, fmt.Errorf("unable to find template with key %s", templateKey)
 }
 
-// notifyApp is the view-model for a single app referenced in a notify email.
-// v3 resource.App does not carry space/org names, so we resolve them and pass
-// them explicitly to the template.
-type notifyApp struct {
-	Name      string
-	SpaceName string
-	OrgName   string
-}
-
 // notifyEmail provides struct for the templates/mail/notify.tmpl
 type notifyEmail struct {
-	Username      string
-	Apps          []notifyApp
-	IsMultipleApp bool
-	Buildpacks    []buildpackReleaseInfo
+	Username   string
+	Apps       []notifyApp
+	Buildpacks []buildpackReleaseInfo
 }
 
 // getNotifyEmail gets the filled in notify email template.

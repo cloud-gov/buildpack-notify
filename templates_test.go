@@ -37,7 +37,7 @@ func TestGetNotifyEmail(t *testing.T) {
 			"single app",
 			notifyEmail{"test@example.com", []notifyApp{
 				{Name: "my-drupal-app", SpaceName: "dev", OrgName: "sandbox"},
-			}, false, updatedBuildpacksSingleApp},
+			}, updatedBuildpacksSingleApp},
 			filepath.Join(rootDataPath, "single_app.txt"),
 		},
 		{
@@ -45,8 +45,23 @@ func TestGetNotifyEmail(t *testing.T) {
 			notifyEmail{"test@example.com", []notifyApp{
 				{Name: "my-drupal-app", SpaceName: "dev", OrgName: "sandbox"},
 				{Name: "my-wordpress-app", SpaceName: "staging", OrgName: "paid-org"},
-			}, true, updatedBuildpacksMultipleApps},
+			}, updatedBuildpacksMultipleApps},
 			filepath.Join(rootDataPath, "multiple_apps.txt"),
+		},
+		{
+			"multiple apps with pinned buildpacks",
+			notifyEmail{"test@example.com", []notifyApp{
+				{
+					Name:                      "my-drupal-app",
+					SpaceName:                 "dev",
+					OrgName:                   "sandbox",
+					IsUsingPinnedGitBuildpack: true,
+					PinnedGitBuildpackUrl:     "https://github.com/cloudfoundry/php-buildpack.git#v1.2.2",
+					SystemBuildpackName:       "php_buildpack",
+				},
+				{Name: "my-wordpress-app", SpaceName: "staging", OrgName: "paid-org"},
+			}, updatedBuildpacksMultipleApps},
+			filepath.Join(rootDataPath, "multiple_apps_with_pinned.txt"),
 		},
 	}
 	for _, tc := range testCases {

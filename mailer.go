@@ -2,7 +2,6 @@ package main
 
 import (
 	"crypto/tls"
-	"crypto/x509"
 	"net/smtp"
 
 	"github.com/jordan-wright/email"
@@ -15,23 +14,13 @@ type Mailer interface {
 
 // InitSMTPMailer creates a new SMTP Mailer
 func InitSMTPMailer(config EmailConfig) Mailer {
-	var tlsConfig *tls.Config
-	if config.Cert != "" {
-		pool := x509.NewCertPool()
-		pool.AppendCertsFromPEM([]byte(config.Cert))
-		tlsConfig = &tls.Config{
-			ServerName: config.Host,
-			RootCAs:    pool,
-		}
 
-	}
 	return &smtpMailer{
-		smtpHost:  config.Host,
-		smtpPort:  config.Port,
-		smtpUser:  config.User,
-		smtpPass:  config.Password,
-		smtpFrom:  config.From,
-		tlsConfig: tlsConfig,
+		smtpHost: config.Host,
+		smtpPort: config.Port,
+		smtpUser: config.User,
+		smtpPass: config.Password,
+		smtpFrom: config.From,
 	}
 }
 

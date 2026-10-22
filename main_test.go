@@ -16,195 +16,17 @@ import (
 	"github.com/cloudfoundry/go-cfclient/v3/resource"
 
 	"github.com/cloud-gov/buildpack-notify/mocks"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 )
-
-func TestBuildPackURLIsReturnedForSystemBuildPacks(t *testing.T) {
-	testBuildPackNames := []string{
-		"staticfile_buildpack",
-		"java_buildpack",
-		"ruby_buildpack",
-		"dotnet_core_buildpack",
-		"nodejs_buildpack",
-		"go_buildpack",
-		"python_buildpack",
-		"php_buildpack",
-		"binary_buildpack",
-		"nginx_buildpack",
-		"r_buildpack",
-	}
-
-	for _, testBuildPackName := range testBuildPackNames {
-		testBuildPackURL := getBuildpackReleaseURL(testBuildPackName)
-
-		if testBuildPackURL == "" {
-			t.Errorf("Finding the buildpack URL failed for %s.", testBuildPackName)
-		}
-	}
-}
-
-func TestEmptyStringReturnedForUnknownBuildpack(t *testing.T) {
-	testBuildpackName := "my_fake_buildpack"
-
-	testBuildpackURL := getBuildpackReleaseURL(testBuildpackName)
-
-	if testBuildpackURL != "" {
-		t.Errorf("The buildpack %s should not have mapped to a URL.", testBuildpackName)
-	}
-}
-
-func TestParseBuildpackVersion(t *testing.T) {
-	testBuildpackFileName := "python_buildpack-cflinuxfs3-v1.7.43.zip"
-	expectedBuildpackVersion := "v1.7.43"
-
-	buildpackVersion := parseBuildpackVersion(testBuildpackFileName)
-
-	if buildpackVersion != expectedBuildpackVersion {
-		t.Errorf("The buildpack version for %s was not parsed correctly; expected %s", testBuildpackFileName, expectedBuildpackVersion)
-	}
-}
-
-func TestParseBuildpackVersionMoreDashes(t *testing.T) {
-	testBuildpackFileName := "php-buildpack-cflinuxfs3-v4.4.49.zip"
-	expectedBuildpackVersion := "v4.4.49"
-
-	buildpackVersion := parseBuildpackVersion(testBuildpackFileName)
-
-	if buildpackVersion != expectedBuildpackVersion {
-		t.Errorf("The buildpack version for %s was not parsed correctly; expected %s", testBuildpackFileName, expectedBuildpackVersion)
-	}
-}
-
-func TestBuildpackVersionURL(t *testing.T) {
-	testBuildpackReleaseURL := "https://github.com/cloudfoundry/python-buildpack/releases"
-	testBuildpackVersion := "v1.7.43"
-	expectedVersionURL := "https://github.com/cloudfoundry/python-buildpack/releases/tag/v1.7.43"
-
-	buildpackVersionURL := getBuildpackVersionURL(testBuildpackReleaseURL, testBuildpackVersion)
-
-	if buildpackVersionURL != expectedVersionURL {
-		t.Errorf("The buildpack version URL for %s (%s) was not built correctly; expected %s", testBuildpackReleaseURL, testBuildpackVersion, expectedVersionURL)
-	}
-}
-
-func TestBuildpackVersionURLWithBadVersion(t *testing.T) {
-	testBuildpackReleaseURL := "https://github.com/cloudfoundry/python-buildpack/releases"
-	testBuildpackVersionMissingV := "7.5"
-	testBuildpackVersionDifferentFormat := "x.321.y.323"
-	expectedVersionURL := "https://github.com/cloudfoundry/python-buildpack/releases"
-
-	buildpackVersionURL1 := getBuildpackVersionURL(testBuildpackReleaseURL, testBuildpackVersionMissingV)
-	buildpackVersionURL2 := getBuildpackVersionURL(testBuildpackReleaseURL, testBuildpackVersionDifferentFormat)
-
-	if buildpackVersionURL1 != expectedVersionURL {
-		t.Errorf("The buildpack version URL for %s (%s) was not built correctly; expected %s", testBuildpackReleaseURL, testBuildpackVersionMissingV, expectedVersionURL)
-	}
-
-	if buildpackVersionURL2 != expectedVersionURL {
-		t.Errorf("The buildpack version URL for %s (%s) was not built correctly; expected %s", testBuildpackReleaseURL, testBuildpackVersionDifferentFormat, expectedVersionURL)
-	}
-}
-
-func TestIsDropletUsingSupportedBuildpack(t *testing.T) {
-	buildpacks := map[string]resource.Buildpack{
-		"python_buildpack": {Name: "python_buildpack"},
-	}
-	testCases := []struct {
-		name     string
-		droplet  resource.Droplet
-		expected bool
-	}{
-		{
-			"supported buildpack",
-			resource.Droplet{Buildpacks: []resource.DetectedBuildpack{{Name: "python_buildpack"}}},
-			true,
-		},
-		{
-			"unsupported buildpack",
-			resource.Droplet{Buildpacks: []resource.DetectedBuildpack{{Name: "custom_buildpack"}}},
-			false,
-		},
-		{
-			"supported and unsupported buildpack",
-			resource.Droplet{Buildpacks: []resource.DetectedBuildpack{{Name: "python_buildpack"}, {Name: "custom_buildpack"}}},
-			true,
-		},
-		{
-			"empty buildpack name is ignored",
-			resource.Droplet{Buildpacks: []resource.DetectedBuildpack{{Name: ""}}},
-			false,
-		},
-		{
-			"no buildpacks",
-			resource.Droplet{},
-			false,
-		},
-	}
-	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
-			found, bp := isDropletUsingSupportedBuildpack(tc.droplet, buildpacks)
-			if found != tc.expected {
-				t.Errorf("Expected %v, got %v", tc.expected, found)
-			}
-			if found && bp == nil {
-				t.Errorf("Expected a buildpack pointer when found")
-			}
-			if !found && bp != nil {
-				t.Errorf("Expected nil buildpack when not found")
-			}
-		})
-	}
-}
-
-func TestIsDropletUsingOutdatedBuildpack(t *testing.T) {
-	older := time.Date(2020, 1, 1, 0, 0, 0, 0, time.UTC)
-	newer := time.Date(2021, 1, 1, 0, 0, 0, 0, time.UTC)
-
-	testCases := []struct {
-		name      string
-		droplet   *resource.Droplet
-		buildpack *resource.Buildpack
-		expected  bool
-	}{
-		{
-			"droplet older than buildpack -> outdated",
-			&resource.Droplet{Resource: resource.Resource{CreatedAt: older}},
-			&resource.Buildpack{Resource: resource.Resource{UpdatedAt: newer}},
-			true,
-		},
-		{
-			"droplet newer than buildpack -> not outdated",
-			&resource.Droplet{Resource: resource.Resource{CreatedAt: newer}},
-			&resource.Buildpack{Resource: resource.Resource{UpdatedAt: older}},
-			false,
-		},
-		{
-			"nil droplet -> not outdated",
-			nil,
-			&resource.Buildpack{Resource: resource.Resource{UpdatedAt: newer}},
-			false,
-		},
-		{
-			"nil buildpack -> not outdated",
-			&resource.Droplet{Resource: resource.Resource{CreatedAt: older}},
-			nil,
-			false,
-		},
-	}
-	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
-			if got := isDropletUsingOutdatedBuildpack(tc.droplet, tc.buildpack); got != tc.expected {
-				t.Errorf("Expected %v, got %v", tc.expected, got)
-			}
-		})
-	}
-}
 
 func TestFilterForValidEmailUsernames(t *testing.T) {
 	valid := "valid@example.com"
 	invalid := "not-an-email"
-	app := &resource.App{Name: "test-app"}
-	app.Relationships.Space.Data = &resource.Relationship{GUID: "space-guid"}
+	app := notifyApp{
+		Name:      "test-app",
+		SpaceGUID: "space-guid",
+	}
 
 	filtered := filterForValidEmailUsernames([]*resource.User{
 		{Username: &valid},
@@ -585,7 +407,16 @@ func TestFindOwnersOfApps(t *testing.T) {
 				t.Fatal(err)
 			}
 
-			actual := findOwnersOfApps(ctx, apps, client)
+			var notifyApps []notifyApp
+			for _, app := range apps {
+				notifyApps = append(notifyApps, notifyApp{
+					Name:      app.Name,
+					GUID:      app.GUID,
+					SpaceGUID: app.Relationships.Space.Data.GUID,
+				})
+			}
+
+			actual := findOwnersOfApps(ctx, notifyApps, client)
 			if len(actual) != len(tc.expected) {
 				t.Errorf("Test %s failed. Expected %d user entries, found %d\n", tc.name, len(tc.expected), len(actual))
 			}
@@ -626,6 +457,10 @@ func TestFindOutdatedApps(t *testing.T) {
 		{guid: "started-current", name: "started-current", spaceGUID: "space-1"},
 		{guid: "started-unsupported", name: "started-unsupported", spaceGUID: "space-1"},
 		{guid: "started-missing-filename", name: "started-missing-filename", spaceGUID: "space-1"},
+		{guid: "invalid-git-reference", name: "invalid-git-reference", spaceGUID: "space-1"},
+		{guid: "outdated-pinned-git-version", name: "outdated-pinned-git-version", spaceGUID: "space-1"},
+		{guid: "current-pinned-git-version", name: "current-pinned-git-version", spaceGUID: "space-1"},
+		{guid: "newer-pinned-git-version", name: "newer-pinned-git-version", spaceGUID: "space-1"},
 	}
 
 	client, closeFn := newV3TestServerAndClient(t, apps, map[string]spaceSpec{
@@ -636,11 +471,11 @@ func TestFindOutdatedApps(t *testing.T) {
 	}, map[string]dropletSpec{
 		"started-outdated": {
 			createdAt:  older,
-			buildpacks: []resource.DetectedBuildpack{{Name: "python_buildpack"}},
+			buildpacks: []resource.DetectedBuildpack{{Name: "python_buildpack", Version: "1.2.2"}},
 		},
 		"started-current": {
 			createdAt:  newer.Add(24 * time.Hour),
-			buildpacks: []resource.DetectedBuildpack{{Name: "python_buildpack"}},
+			buildpacks: []resource.DetectedBuildpack{{Name: "python_buildpack", Version: "1.2.3"}},
 		},
 		"started-unsupported": {
 			createdAt:  older,
@@ -650,6 +485,18 @@ func TestFindOutdatedApps(t *testing.T) {
 			createdAt:  older,
 			buildpacks: []resource.DetectedBuildpack{{Name: "ruby_buildpack"}},
 		},
+		"invalid-git-reference": {
+			buildpacks: []resource.DetectedBuildpack{{Name: "https://gitlab.com/cloudfoundry/python-buildpack.git#v1.2.3"}},
+		},
+		"outdated-pinned-git-version": {
+			buildpacks: []resource.DetectedBuildpack{{Name: "https://github.com/cloudfoundry/python-buildpack.git#v1.2.2"}},
+		},
+		"current-pinned-git-version": {
+			buildpacks: []resource.DetectedBuildpack{{Name: "https://github.com/cloudfoundry/python-buildpack.git#v1.2.4"}},
+		},
+		"newer-pinned-git-version": {
+			buildpacks: []resource.DetectedBuildpack{{Name: "https://github.com/cloudfoundry/python-buildpack.git#v1.2.5"}},
+		},
 	})
 	defer closeFn()
 
@@ -658,9 +505,9 @@ func TestFindOutdatedApps(t *testing.T) {
 	if err != nil {
 		t.Fatalf("listing apps: %v", err)
 	}
-	cfApps[1].State = "STARTED"
-	cfApps[2].State = "STARTED"
-	cfApps[3].State = "STARTED"
+	for idx := range cfApps {
+		cfApps[idx].State = "STARTED"
+	}
 	cfApps = append(cfApps, &resource.App{Name: "stopped-app", State: "STOPPED", Resource: resource.Resource{GUID: "stopped-app"}})
 
 	buildpackList, err := client.Buildpacks.ListAll(ctx, nil)
@@ -673,21 +520,18 @@ func TestFindOutdatedApps(t *testing.T) {
 	}
 
 	outdatedApps, updatedBuildpacks := findOutdatedApps(ctx, client, cfApps, buildpacks)
-	if len(outdatedApps) != 1 {
-		t.Fatalf("expected 1 outdated app, got %d", len(outdatedApps))
-	}
-	if outdatedApps[0].Name != "started-outdated" {
-		t.Fatalf("expected started-outdated, got %s", outdatedApps[0].Name)
-	}
-	if len(updatedBuildpacks) != 1 {
-		t.Fatalf("expected 1 updated buildpack entry, got %d", len(updatedBuildpacks))
-	}
-	if updatedBuildpacks[0].BuildpackName != "python_buildpack" {
-		t.Fatalf("expected python_buildpack release info, got %s", updatedBuildpacks[0].BuildpackName)
-	}
-	if updatedBuildpacks[0].BuildpackVersion != "v1.2.3" {
-		t.Fatalf("expected parsed buildpack version v1.2.3, got %s", updatedBuildpacks[0].BuildpackVersion)
-	}
+	assert.Equal(t, 2, len(outdatedApps))
+	assert.Equal(t, "started-outdated", outdatedApps[0].Name)
+	assert.Equal(t, "python_buildpack", outdatedApps[0].SystemBuildpackName)
+	assert.Equal(t, "outdated-pinned-git-version", outdatedApps[1].Name)
+	assert.Equal(t, "python_buildpack", outdatedApps[1].SystemBuildpackName)
+	assert.True(t, outdatedApps[1].IsUsingPinnedGitBuildpack)
+	assert.Equal(t, "https://github.com/cloudfoundry/python-buildpack.git#v1.2.2", outdatedApps[1].PinnedGitBuildpackUrl)
+	assert.Equal(t, 2, len(updatedBuildpacks))
+	assert.Equal(t, "python_buildpack", updatedBuildpacks[0].BuildpackName)
+	assert.Equal(t, "v1.2.3", updatedBuildpacks[0].BuildpackVersion)
+	assert.Equal(t, "python_buildpack", updatedBuildpacks[1].BuildpackName)
+	assert.Equal(t, "v1.2.3", updatedBuildpacks[1].BuildpackVersion)
 }
 
 type testNotifyEmail struct {
@@ -733,10 +577,9 @@ func TestSendNotifyEmailToUsers(t *testing.T) {
 						[]notifyApp{
 							{Name: "testapp"},
 						},
-						false,
 						updatedBuildpacks,
 					},
-					"Action required: restage your application",
+					"Action required: restage your application(s)",
 				},
 			},
 		},
@@ -756,10 +599,9 @@ func TestSendNotifyEmailToUsers(t *testing.T) {
 							{Name: "testapp1"},
 							{Name: "testapp2"},
 						},
-						true,
 						updatedBuildpacks,
 					},
-					"Action required: restage your applications",
+					"Action required: restage your application(s)",
 				},
 			},
 		},
@@ -780,10 +622,9 @@ func TestSendNotifyEmailToUsers(t *testing.T) {
 						[]notifyApp{
 							{Name: "testapp1"},
 						},
-						false,
 						updatedBuildpacks,
 					},
-					"Action required: restage your application",
+					"Action required: restage your application(s)",
 				},
 				{
 					notifyEmail{
@@ -791,10 +632,9 @@ func TestSendNotifyEmailToUsers(t *testing.T) {
 						[]notifyApp{
 							{Name: "testapp2"},
 						},
-						false,
 						updatedBuildpacks,
 					},
-					"Action required: restage your application",
+					"Action required: restage your application(s)",
 				},
 			},
 		},
@@ -818,10 +658,9 @@ func TestSendNotifyEmailToUsers(t *testing.T) {
 							{Name: "testapp1"},
 							{Name: "testapp2"},
 						},
-						true,
 						updatedBuildpacks,
 					},
-					"Action required: restage your applications",
+					"Action required: restage your application(s)",
 				},
 				{
 					notifyEmail{
@@ -830,10 +669,9 @@ func TestSendNotifyEmailToUsers(t *testing.T) {
 							{Name: "testapp3"},
 							{Name: "testapp4"},
 						},
-						true,
 						updatedBuildpacks,
 					},
-					"Action required: restage your applications",
+					"Action required: restage your application(s)",
 				},
 			},
 		},
