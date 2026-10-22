@@ -89,11 +89,11 @@ func main() {
 	}
 
 	outdatedApps, updatedBuildpacks := findOutdatedApps(ctx, client, apps, buildpacks)
-	owners := findOwnersOfApps(ctx, outdatedApps, client)
+	appsByOwner := findOwnersOfApps(ctx, outdatedApps, client)
 
-	log.Printf("Will notify %d owners of outdated apps.\n", len(owners))
+	log.Printf("Will notify %d owners of outdated apps.\n", len(appsByOwner))
 	updatedBuildpacks = deduplicateBuildpacks(updatedBuildpacks)
-	sendNotifyEmailToUsers(owners, updatedBuildpacks, templates, mailer, config.DryRun)
+	sendNotifyEmailToUsers(appsByOwner, updatedBuildpacks, templates, mailer, config.DryRun)
 
 	if config.DryRun {
 		if err := copyState(config.InState, config.OutState); err != nil {
@@ -128,17 +128,17 @@ func getAppsAndBuildpacks(client *cfclient.Client, ctx context.Context, state ma
 
 // filterForValidEmailUsernames drops any users whose username is not a valid
 // e-mail address, since notifications are delivered by e-mail.
-func filterForValidEmailUsernames(users []*resource.User, app *resource.App) []*resource.User {
+func filterForValidEmailUsernames(users []*resource.User, notifyApp notifyApp) []*resource.User {
 	var filteredUsers []*resource.User
 	for _, user := range users {
 		if user.Username == nil {
 			log.Printf("Dropping notification to user %s about app %s in space %s because missing e-mail address\n",
-				user.GUID, app.Name, app.Relationships.Space.Data.GUID)
+				user.GUID, notifyApp.Name, notifyApp.SpaceGUID)
 			continue
 		}
 		if _, err := mail.ParseAddress(*user.Username); err != nil {
 			log.Printf("Dropping notification to user %s about app %s in space %s because "+
-				"invalid e-mail address\n", *user.Username, app.Name, app.Relationships.Space.Data.GUID)
+				"invalid e-mail address\n", *user.Username, notifyApp.Name, notifyApp.SpaceGUID)
 		} else {
 			filteredUsers = append(filteredUsers, user)
 		}
@@ -146,7 +146,7 @@ func filterForValidEmailUsernames(users []*resource.User, app *resource.App) []*
 	return filteredUsers
 }
 
-func findOutdatedApps(ctx context.Context, client *cfclient.Client, apps []*resource.App, systemBuildpacks map[string]resource.Buildpack) (outdatedApps []*resource.App, updatedBuildpacks []buildpackReleaseInfo) {
+func findOutdatedApps(ctx context.Context, client *cfclient.Client, apps []*resource.App, systemBuildpacks map[string]resource.Buildpack) (outdatedApps []notifyApp, updatedBuildpacks []buildpackReleaseInfo) {
 	for _, app := range apps {
 		if app.State != "STARTED" {
 			log.Printf("App %s guid %s not in STARTED state\n", app.Name, app.GUID)
@@ -184,7 +184,11 @@ func findOutdatedApps(ctx context.Context, client *cfclient.Client, apps []*reso
 			log.Printf("App %s GUID %s | %s buildpack %s is outdated\n", app.Name, app.GUID, buildpackInfo.source, supportedBuildpack.Name)
 
 			updatedBuildpacks = append(updatedBuildpacks, *buildpackReleaseInfo)
-			outdatedApps = append(outdatedApps, app)
+			outdatedApps = append(outdatedApps, notifyApp{
+				GUID:      app.GUID,
+				Name:      app.Name,
+				SpaceGUID: app.Relationships.Space.Data.GUID,
+			})
 		}
 	}
 	return

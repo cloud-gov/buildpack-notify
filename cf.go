@@ -24,9 +24,12 @@ type spaceOrgNames struct {
 // v3 resource.App does not carry space/org names, so we resolve them and pass
 // them explicitly to the template.
 type notifyApp struct {
-	Name      string
-	SpaceName string
-	OrgName   string
+	GUID                      string
+	SpaceGUID                 string
+	IsUsingPinnedGitBuildpack bool
+	Name                      string
+	SpaceName                 string
+	OrgName                   string
 }
 
 func createCFSpaceCache() *cfSpaceCache {
@@ -45,10 +48,10 @@ func getAppOwnerSpaceRoleTypes() []resource.SpaceRoleType {
 
 func (c *cfSpaceCache) getOwnersInAppSpace(
 	ctx context.Context,
-	app *resource.App,
+	notifyApp notifyApp,
 	client *cfclient.Client,
 ) ([]*resource.User, error) {
-	spaceGUID := app.Relationships.Space.Data.GUID
+	spaceGUID := notifyApp.SpaceGUID
 
 	if users, ok := c.spaceUsers[spaceGUID]; ok {
 		return users, nil
@@ -65,7 +68,7 @@ func (c *cfSpaceCache) getOwnersInAppSpace(
 		return nil, err
 	}
 
-	ownersWithSpaceRoles := filterForValidEmailUsernames(users, app)
+	ownersWithSpaceRoles := filterForValidEmailUsernames(users, notifyApp)
 
 	c.spaceUsers[spaceGUID] = ownersWithSpaceRoles
 	return ownersWithSpaceRoles, nil
@@ -76,10 +79,10 @@ func (c *cfSpaceCache) getOwnersInAppSpace(
 // up to render the "cf target -o ORG -s SPACE" line in the email to notify users.
 func (c *cfSpaceCache) getSpaceOrgNames(
 	ctx context.Context,
-	app *resource.App,
+	notifyApp notifyApp,
 	client *cfclient.Client,
 ) (spaceOrgNames, error) {
-	spaceGUID := app.Relationships.Space.Data.GUID
+	spaceGUID := notifyApp.SpaceGUID
 
 	if names, ok := c.spaceNames[spaceGUID]; ok {
 		return names, nil
@@ -95,7 +98,7 @@ func (c *cfSpaceCache) getSpaceOrgNames(
 	return names, nil
 }
 
-func findOwnersOfApps(ctx context.Context, apps []*resource.App, client *cfclient.Client) map[string][]notifyApp {
+func findOwnersOfApps(ctx context.Context, apps []notifyApp, client *cfclient.Client) map[string][]notifyApp {
 	// Mapping of users to the apps.
 	owners := make(map[string][]notifyApp)
 	spaceCache := createCFSpaceCache()
@@ -103,7 +106,7 @@ func findOwnersOfApps(ctx context.Context, apps []*resource.App, client *cfclien
 		ownersWithSpaceRoles, err := spaceCache.getOwnersInAppSpace(ctx, app, client)
 		if err != nil {
 			log.Printf("Unable to get owners for app %s guid %s in space %s: %s\n",
-				app.Name, app.GUID, app.Relationships.Space.Data.GUID, err)
+				app.Name, app.GUID, app.SpaceGUID, err)
 			continue
 		}
 		if len(ownersWithSpaceRoles) == 0 {
@@ -112,16 +115,13 @@ func findOwnersOfApps(ctx context.Context, apps []*resource.App, client *cfclien
 		names, err := spaceCache.getSpaceOrgNames(ctx, app, client)
 		if err != nil {
 			log.Printf("Unable to get org/space names for app %s guid %s in space %s: %s\n",
-				app.Name, app.GUID, app.Relationships.Space.Data.GUID, err)
+				app.Name, app.GUID, app.SpaceGUID, err)
 			continue
 		}
-		appView := notifyApp{
-			Name:      app.Name,
-			SpaceName: names.SpaceName,
-			OrgName:   names.OrgName,
-		}
+		app.SpaceName = names.SpaceName
+		app.OrgName = names.OrgName
 		for _, ownerWithSpaceRoles := range ownersWithSpaceRoles {
-			owners[*ownerWithSpaceRoles.Username] = append(owners[*ownerWithSpaceRoles.Username], appView)
+			owners[*ownerWithSpaceRoles.Username] = append(owners[*ownerWithSpaceRoles.Username], app)
 		}
 	}
 	return owners
