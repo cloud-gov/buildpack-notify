@@ -39,11 +39,6 @@ func (s buildpackSource) String() string {
 	}
 }
 
-type buildpackInfo struct {
-	source             buildpackSource
-	supportedBuildpack *resource.Buildpack
-}
-
 func isBuildpackFilenamePinnedToGitRepo(buildpackFilename string) bool {
 	return buildpackGitRepoRegex.Match([]byte(buildpackFilename))
 }
@@ -144,7 +139,7 @@ func deduplicateBuildpacks(allBuildpacks []buildpackReleaseInfo) []buildpackRele
 }
 
 // isBuildpackSupported checks if the droplet buildpack is included in the system buildpacks
-func isBuildpackSupported(detectedBuildpack resource.DetectedBuildpack, systemBuildpacks map[string]resource.Buildpack) (bool, *buildpackInfo) {
+func isBuildpackSupported(detectedBuildpack resource.DetectedBuildpack, systemBuildpacks map[string]resource.Buildpack) (bool, buildpackSource, *resource.Buildpack) {
 	var source buildpackSource
 	buildpackName := detectedBuildpack.Name
 
@@ -155,18 +150,15 @@ func isBuildpackSupported(detectedBuildpack resource.DetectedBuildpack, systemBu
 	}
 
 	if buildpackName == "" {
-		return false, &buildpackInfo{}
+		return false, source, nil
 	}
 
 	buildpack, found := systemBuildpacks[buildpackName]
 	if !found {
-		return false, &buildpackInfo{}
+		return false, source, nil
 	}
 
-	return found, &buildpackInfo{
-		source:             source,
-		supportedBuildpack: &buildpack,
-	}
+	return found, source, &buildpack
 }
 
 func isDropletBuildpackOutdated(
@@ -196,6 +188,10 @@ func isDropletBuildpackOutdated(
 }
 
 func getBuildpackReleaseInfo(buildpack *resource.Buildpack) (*buildpackReleaseInfo, error) {
+	if buildpack.Filename == nil {
+		return nil, errors.New("no buildpack filename found")
+	}
+
 	version, err := parseSystemBuildpackVersion(*buildpack.Filename)
 	if err != nil {
 		return nil, err

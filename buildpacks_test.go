@@ -107,80 +107,81 @@ func TestIsBuildpackSupported(t *testing.T) {
 		"python_buildpack": {Name: "python_buildpack"},
 	}
 	testCases := []struct {
-		name             string
-		dropletBuildpack resource.DetectedBuildpack
-		expectSupported  bool
-		expected         *buildpackInfo
+		name                    string
+		dropletBuildpack        resource.DetectedBuildpack
+		expectSupported         bool
+		expectedBuildpackSource buildpackSource
+		expectedBuildpack       *resource.Buildpack
 	}{
 		{
 			"supported buildpack",
 			resource.DetectedBuildpack{Name: "python_buildpack"},
 			true,
-			&buildpackInfo{
-				source: BUILDPACK_SYSTEM,
-				supportedBuildpack: &resource.Buildpack{
-					Name: "python_buildpack",
-				},
+			BUILDPACK_SYSTEM,
+			&resource.Buildpack{
+				Name: "python_buildpack",
 			},
 		},
 		{
 			"unsupported buildpack",
 			resource.DetectedBuildpack{Name: "custom_buildpack"},
 			false,
-			&buildpackInfo{},
+			BUILDPACK_SYSTEM,
+			nil,
 		},
 		{
 			"empty buildpack name is ignored",
 			resource.DetectedBuildpack{Name: ""},
 			false,
-			&buildpackInfo{},
+			BUILDPACK_SYSTEM,
+			nil,
 		},
 		{
 			"no buildpacks",
 			resource.DetectedBuildpack{},
 			false,
-			&buildpackInfo{},
+			BUILDPACK_SYSTEM,
+			nil,
 		},
 		{
 			"pinned git repo buildpack",
 			resource.DetectedBuildpack{Name: "https://github.com/cloudfoundry/python-buildpack.git#v1.8.38"},
 			true,
-			&buildpackInfo{
-				source: BUILDPACK_GIT_PINNED,
-				supportedBuildpack: &resource.Buildpack{
-					Name: "python_buildpack",
-				},
+			BUILDPACK_GIT_PINNED,
+			&resource.Buildpack{
+				Name: "python_buildpack",
 			},
 		},
 		{
 			"pinned git repo version with shorter version",
 			resource.DetectedBuildpack{Name: "https://github.com/cloudfoundry/python-buildpack.git#v1.8"},
 			true,
-			&buildpackInfo{
-				source: BUILDPACK_GIT_PINNED,
-				supportedBuildpack: &resource.Buildpack{
-					Name: "python_buildpack",
-				},
+			BUILDPACK_GIT_PINNED,
+			&resource.Buildpack{
+				Name: "python_buildpack",
 			},
 		},
 		{
-			"pinned git repo sha",
+			"pinned git repo sha, not pinned version",
 			resource.DetectedBuildpack{Name: "https://github.com/cloudfoundry/python-buildpack.git#abc1234"},
 			false,
-			&buildpackInfo{},
+			BUILDPACK_SYSTEM,
+			nil,
 		},
 		{
 			"invalid git repo",
 			resource.DetectedBuildpack{Name: "https://gitlab.com/cloudfoundry/python-buildpack.git#v1.8.38"},
 			false,
-			&buildpackInfo{},
+			BUILDPACK_SYSTEM,
+			nil,
 		},
 	}
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			isSupported, supportedBuildpack := isBuildpackSupported(tc.dropletBuildpack, buildpacks)
-			assert.Equal(t, isSupported, tc.expectSupported)
-			assert.Equal(t, supportedBuildpack, tc.expected)
+			isSupported, buildpackSource, supportedBuildpack := isBuildpackSupported(tc.dropletBuildpack, buildpacks)
+			assert.Equal(t, tc.expectSupported, isSupported)
+			assert.Equal(t, tc.expectedBuildpackSource, buildpackSource)
+			assert.Equal(t, tc.expectedBuildpack, supportedBuildpack)
 		})
 	}
 }

@@ -22,8 +22,10 @@ import (
 func TestFilterForValidEmailUsernames(t *testing.T) {
 	valid := "valid@example.com"
 	invalid := "not-an-email"
-	app := &resource.App{Name: "test-app"}
-	app.Relationships.Space.Data = &resource.Relationship{GUID: "space-guid"}
+	app := notifyApp{
+		Name:      "test-app",
+		SpaceGUID: "space-guid",
+	}
 
 	filtered := filterForValidEmailUsernames([]*resource.User{
 		{Username: &valid},
@@ -404,7 +406,16 @@ func TestFindOwnersOfApps(t *testing.T) {
 				t.Fatal(err)
 			}
 
-			actual := findOwnersOfApps(ctx, apps, client)
+			var notifyApps []notifyApp
+			for _, app := range apps {
+				notifyApps = append(notifyApps, notifyApp{
+					Name:      app.Name,
+					GUID:      app.GUID,
+					SpaceGUID: app.Relationships.Space.Data.GUID,
+				})
+			}
+
+			actual := findOwnersOfApps(ctx, notifyApps, client)
 			if len(actual) != len(tc.expected) {
 				t.Errorf("Test %s failed. Expected %d user entries, found %d\n", tc.name, len(tc.expected), len(actual))
 			}
@@ -455,11 +466,11 @@ func TestFindOutdatedApps(t *testing.T) {
 	}, map[string]dropletSpec{
 		"started-outdated": {
 			createdAt:  older,
-			buildpacks: []resource.DetectedBuildpack{{Name: "python_buildpack"}},
+			buildpacks: []resource.DetectedBuildpack{{Name: "python_buildpack", Version: "1.2.2"}},
 		},
 		"started-current": {
 			createdAt:  newer.Add(24 * time.Hour),
-			buildpacks: []resource.DetectedBuildpack{{Name: "python_buildpack"}},
+			buildpacks: []resource.DetectedBuildpack{{Name: "python_buildpack", Version: "1.2.3"}},
 		},
 		"started-unsupported": {
 			createdAt:  older,
