@@ -50,10 +50,9 @@ func (t *Templates) getTemplate(templateKey string) (*template.Template, error) 
 
 // notifyEmail provides struct for the templates/mail/notify.tmpl
 type notifyEmail struct {
-	Username      string
-	Apps          []notifyApp
-	IsMultipleApp bool
-	Buildpacks    []buildpackReleaseInfo
+	Username   string
+	Apps       []notifyApp
+	Buildpacks []buildpackReleaseInfo
 }
 
 // getNotifyEmail gets the filled in notify email template.

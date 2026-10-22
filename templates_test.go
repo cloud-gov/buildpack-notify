@@ -37,7 +37,7 @@ func TestGetNotifyEmail(t *testing.T) {
 			"single app",
 			notifyEmail{"test@example.com", []notifyApp{
 				{Name: "my-drupal-app", SpaceName: "dev", OrgName: "sandbox"},
-			}, false, updatedBuildpacksSingleApp},
+			}, updatedBuildpacksSingleApp},
 			filepath.Join(rootDataPath, "single_app.txt"),
 		},
 		{
@@ -45,7 +45,7 @@ func TestGetNotifyEmail(t *testing.T) {
 			notifyEmail{"test@example.com", []notifyApp{
 				{Name: "my-drupal-app", SpaceName: "dev", OrgName: "sandbox"},
 				{Name: "my-wordpress-app", SpaceName: "staging", OrgName: "paid-org"},
-			}, true, updatedBuildpacksMultipleApps},
+			}, updatedBuildpacksMultipleApps},
 			filepath.Join(rootDataPath, "multiple_apps.txt"),
 		},
 	}

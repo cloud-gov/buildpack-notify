@@ -196,20 +196,15 @@ func sendNotifyEmailToUsers(users map[string][]notifyApp, updatedBuildpacks []bu
 	for user, apps := range users {
 		// Create buffer
 		body := new(bytes.Buffer)
-		// Determine whether the user has one application or more than one.
-		isMultipleApp := len(apps) > 1
 		// Fill buffer with completed e-mail
-		err := templates.getNotifyEmail(body, notifyEmail{user, apps, isMultipleApp, updatedBuildpacks})
+		err := templates.getNotifyEmail(body, notifyEmail{user, apps, updatedBuildpacks})
 		if err != nil {
 			log.Printf("Unable to render e-mail for %s: %s\n", user, err)
 			continue
 		}
 		// Send email
 		if !dryRun {
-			subj := "Action required: restage your application"
-			if isMultipleApp {
-				subj += "s"
-			}
+			subj := "Action required: restage your application(s)"
 			err := mailer.SendEmail(user, subj, body.Bytes())
 			if err != nil {
 				log.Printf("Unable to send e-mail to %s\n", user)
