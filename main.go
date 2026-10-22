@@ -214,7 +214,7 @@ func sendNotifyEmailToUsers(users map[string][]notifyApp, updatedBuildpacks []bu
 		// Fill buffer with completed e-mail
 		err := templates.getNotifyEmail(body, notifyEmail{user, apps, updatedBuildpacks})
 		if err != nil {
-			slog.Info("Unable to render e-mail for %s: %s", user, err)
+			slog.Error("Unable to render e-mail for %s: %s", user, err)
 			continue
 		}
 		// Send email
@@ -222,7 +222,7 @@ func sendNotifyEmailToUsers(users map[string][]notifyApp, updatedBuildpacks []bu
 			subj := "Action required: restage your application(s)"
 			err := mailer.SendEmail(user, subj, body.Bytes())
 			if err != nil {
-				slog.Info(fmt.Sprintf("Unable to send e-mail to %s", user))
+				slog.Error(fmt.Sprintf("Unable to send e-mail to %s: %s", user, err))
 				continue
 			}
 		}
