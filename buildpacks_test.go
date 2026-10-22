@@ -224,6 +224,20 @@ func TestIsDropletUsingOutdatedBuildpack(t *testing.T) {
 			"",
 			false,
 		},
+		{
+			"pinned git buildpack is outdated",
+			&resource.DetectedBuildpack{Name: "https://github.com/cloudfoundry/python-buildpack.git#v1.2.3"},
+			BUILDPACK_GIT_PINNED,
+			"v1.2.4",
+			true,
+		},
+		{
+			"pinned git buildpack is not outdated",
+			&resource.DetectedBuildpack{Name: "https://github.com/cloudfoundry/python-buildpack.git#v1.2.5"},
+			BUILDPACK_GIT_PINNED,
+			"v1.2.4",
+			false,
+		},
 	}
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
