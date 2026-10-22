@@ -16,6 +16,7 @@ import (
 	"github.com/cloudfoundry/go-cfclient/v3/resource"
 
 	"github.com/cloud-gov/buildpack-notify/mocks"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 )
 
@@ -456,6 +457,10 @@ func TestFindOutdatedApps(t *testing.T) {
 		{guid: "started-current", name: "started-current", spaceGUID: "space-1"},
 		{guid: "started-unsupported", name: "started-unsupported", spaceGUID: "space-1"},
 		{guid: "started-missing-filename", name: "started-missing-filename", spaceGUID: "space-1"},
+		{guid: "invalid-git-reference", name: "invalid-git-reference", spaceGUID: "space-1"},
+		{guid: "outdated-pinned-git-version", name: "outdated-pinned-git-version", spaceGUID: "space-1"},
+		{guid: "current-pinned-git-version", name: "current-pinned-git-version", spaceGUID: "space-1"},
+		{guid: "newer-pinned-git-version", name: "newer-pinned-git-version", spaceGUID: "space-1"},
 	}
 
 	client, closeFn := newV3TestServerAndClient(t, apps, map[string]spaceSpec{
@@ -480,6 +485,18 @@ func TestFindOutdatedApps(t *testing.T) {
 			createdAt:  older,
 			buildpacks: []resource.DetectedBuildpack{{Name: "ruby_buildpack"}},
 		},
+		"invalid-git-reference": {
+			buildpacks: []resource.DetectedBuildpack{{Name: "https://gitlab.com/cloudfoundry/python-buildpack.git#v1.2.3"}},
+		},
+		"outdated-pinned-git-version": {
+			buildpacks: []resource.DetectedBuildpack{{Name: "https://github.com/cloudfoundry/python-buildpack.git#v1.2.2"}},
+		},
+		"current-pinned-git-version": {
+			buildpacks: []resource.DetectedBuildpack{{Name: "https://github.com/cloudfoundry/python-buildpack.git#v1.2.4"}},
+		},
+		"newer-pinned-git-version": {
+			buildpacks: []resource.DetectedBuildpack{{Name: "https://github.com/cloudfoundry/python-buildpack.git#v1.2.5"}},
+		},
 	})
 	defer closeFn()
 
@@ -488,9 +505,9 @@ func TestFindOutdatedApps(t *testing.T) {
 	if err != nil {
 		t.Fatalf("listing apps: %v", err)
 	}
-	cfApps[1].State = "STARTED"
-	cfApps[2].State = "STARTED"
-	cfApps[3].State = "STARTED"
+	for idx := range cfApps {
+		cfApps[idx].State = "STARTED"
+	}
 	cfApps = append(cfApps, &resource.App{Name: "stopped-app", State: "STOPPED", Resource: resource.Resource{GUID: "stopped-app"}})
 
 	buildpackList, err := client.Buildpacks.ListAll(ctx, nil)
@@ -503,21 +520,14 @@ func TestFindOutdatedApps(t *testing.T) {
 	}
 
 	outdatedApps, updatedBuildpacks := findOutdatedApps(ctx, client, cfApps, buildpacks)
-	if len(outdatedApps) != 1 {
-		t.Fatalf("expected 1 outdated app, got %d", len(outdatedApps))
-	}
-	if outdatedApps[0].Name != "started-outdated" {
-		t.Fatalf("expected started-outdated, got %s", outdatedApps[0].Name)
-	}
-	if len(updatedBuildpacks) != 1 {
-		t.Fatalf("expected 1 updated buildpack entry, got %d", len(updatedBuildpacks))
-	}
-	if updatedBuildpacks[0].BuildpackName != "python_buildpack" {
-		t.Fatalf("expected python_buildpack release info, got %s", updatedBuildpacks[0].BuildpackName)
-	}
-	if updatedBuildpacks[0].BuildpackVersion != "v1.2.3" {
-		t.Fatalf("expected parsed buildpack version v1.2.3, got %s", updatedBuildpacks[0].BuildpackVersion)
-	}
+	assert.Equal(t, 2, len(outdatedApps))
+	assert.Equal(t, "started-outdated", outdatedApps[0].Name)
+	assert.Equal(t, "outdated-pinned-git-version", outdatedApps[1].Name)
+	assert.Equal(t, 2, len(updatedBuildpacks))
+	assert.Equal(t, "python_buildpack", updatedBuildpacks[0].BuildpackName)
+	assert.Equal(t, "v1.2.3", updatedBuildpacks[0].BuildpackVersion)
+	assert.Equal(t, "python_buildpack", updatedBuildpacks[1].BuildpackName)
+	assert.Equal(t, "v1.2.3", updatedBuildpacks[1].BuildpackVersion)
 }
 
 type testNotifyEmail struct {
