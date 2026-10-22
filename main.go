@@ -58,7 +58,7 @@ func main() {
 	}
 
 	if config.DryRun {
-		log.Println("Dry-Run mode activated. No modifications happening")
+		slog.Info("Dry-Run mode activated. No modifications happening")
 	}
 
 	state, err := loadState(config.InState)
@@ -82,7 +82,7 @@ func main() {
 		log.Fatalf("Unable to create client. Error: %s", err.Error())
 	}
 
-	log.Println("Calculating notifications to send for outdated buildpacks.")
+	slog.Info("Calculating notifications to send for outdated buildpacks.")
 	mailer := InitSMTPMailer(emailConfig)
 	apps, buildpacks, state, err := getAppsAndBuildpacks(client, ctx, state)
 	if err != nil {
@@ -227,6 +227,6 @@ func sendNotifyEmailToUsers(users map[string][]notifyApp, updatedBuildpacks []bu
 				continue
 			}
 		}
-		fmt.Printf("Sent e-mail to %s", user)
+		slog.Info(fmt.Sprintf("Sent e-mail to %s", user))
 	}
 }
