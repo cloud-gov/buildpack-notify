@@ -179,7 +179,7 @@ func findOutdatedApps(ctx context.Context, client *cfclient.Client, apps []*reso
 			}
 
 			// If the app is using an outdated buildpack, get the buildpack information to pass along to the user.
-			log.Printf("App %s GUID %s | %s buildpack %s is outdated\n", app.Name, app.GUID, buildpackSource, supportedBuildpack.Name)
+			log.Printf("App %s GUID %s | %s buildpack %s is outdated\n", app.Name, app.GUID, buildpackSource, dropletBuildpack.Name)
 
 			updatedBuildpacks = append(updatedBuildpacks, *buildpackReleaseInfo)
 			outdatedApps = append(outdatedApps, notifyApp{
