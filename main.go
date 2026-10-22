@@ -5,6 +5,7 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"log/slog"
 	"net/http"
 	"net/mail"
 	"time"
@@ -91,7 +92,7 @@ func main() {
 	outdatedApps, updatedBuildpacks := findOutdatedApps(ctx, client, apps, buildpacks)
 	appsByOwner := findOwnersOfApps(ctx, outdatedApps, client)
 
-	log.Printf("Will notify %d owners of outdated apps.\n", len(appsByOwner))
+	slog.Info(fmt.Sprintf("Will notify %d owners of outdated apps.", len(appsByOwner)))
 	updatedBuildpacks = deduplicateBuildpacks(updatedBuildpacks)
 	sendNotifyEmailToUsers(appsByOwner, updatedBuildpacks, templates, mailer, config.DryRun)
 
@@ -132,13 +133,19 @@ func filterForValidEmailUsernames(users []*resource.User, notifyApp notifyApp) [
 	var filteredUsers []*resource.User
 	for _, user := range users {
 		if user.Username == nil {
-			log.Printf("Dropping notification to user %s about app %s in space %s because missing e-mail address\n",
-				user.GUID, notifyApp.Name, notifyApp.SpaceGUID)
+			slog.Info(fmt.Sprintf("Dropping notification to user %s about app %s in space %s because missing e-mail address",
+				user.GUID, notifyApp.Name, notifyApp.SpaceGUID))
 			continue
 		}
 		if _, err := mail.ParseAddress(*user.Username); err != nil {
-			log.Printf("Dropping notification to user %s about app %s in space %s because "+
-				"invalid e-mail address\n", *user.Username, notifyApp.Name, notifyApp.SpaceGUID)
+			slog.Info(
+				fmt.Sprintf(
+					"Dropping notification to user %s about app %s in space %s because invalid e-mail address",
+					*user.Username,
+					notifyApp.Name,
+					notifyApp.SpaceGUID,
+				),
+			)
 		} else {
 			filteredUsers = append(filteredUsers, user)
 		}
@@ -149,13 +156,13 @@ func filterForValidEmailUsernames(users []*resource.User, notifyApp notifyApp) [
 func findOutdatedApps(ctx context.Context, client *cfclient.Client, apps []*resource.App, systemBuildpacks map[string]resource.Buildpack) (outdatedApps []notifyApp, updatedBuildpacks []buildpackReleaseInfo) {
 	for _, app := range apps {
 		if app.State != "STARTED" {
-			log.Printf("App %s guid %s not in STARTED state\n", app.Name, app.GUID)
+			slog.Debug("App %s guid %s not in STARTED state", app.Name, app.GUID)
 			continue
 		}
 
 		droplet, foundDroplet := getCurrentDropletForApp(ctx, *app, client)
 		if !foundDroplet {
-			log.Printf("Unable to find current droplet for app %s guid %s. Safely skipping.\n", app.Name, app.GUID)
+			slog.Debug("Unable to find current droplet for app %s guid %s. Safely skipping.", app.Name, app.GUID)
 			continue
 		}
 
@@ -167,19 +174,19 @@ func findOutdatedApps(ctx context.Context, client *cfclient.Client, apps []*reso
 
 			buildpackReleaseInfo, err := getBuildpackReleaseInfo(supportedBuildpack)
 			if err != nil {
-				log.Printf("Error getting buildpack release info: %s", err)
+				slog.Info(fmt.Sprintf("Error getting buildpack release info: %s", err))
 				continue
 			}
 
 			// If the app is using a supported buildpack, check if app is using an outdated buildpack.
 			appIsOutdated := isDropletBuildpackOutdated(&dropletBuildpack, buildpackSource, buildpackReleaseInfo.BuildpackVersion)
 			if !appIsOutdated {
-				log.Printf("App %s GUID %s | Buildpack %s not outdated\n", app.Name, app.GUID, dropletBuildpack.Name)
+				slog.Debug(fmt.Sprintf("App %s GUID %s | Buildpack %s not outdated", app.Name, app.GUID, dropletBuildpack.Name))
 				continue
 			}
 
 			// If the app is using an outdated buildpack, get the buildpack information to pass along to the user.
-			log.Printf("App %s GUID %s | %s buildpack %s is outdated\n", app.Name, app.GUID, buildpackSource, dropletBuildpack.Name)
+			slog.Info(fmt.Sprintf("App %s GUID %s | %s buildpack %s is outdated", app.Name, app.GUID, buildpackSource, dropletBuildpack.Name))
 
 			updatedBuildpacks = append(updatedBuildpacks, *buildpackReleaseInfo)
 
@@ -208,7 +215,7 @@ func sendNotifyEmailToUsers(users map[string][]notifyApp, updatedBuildpacks []bu
 		// Fill buffer with completed e-mail
 		err := templates.getNotifyEmail(body, notifyEmail{user, apps, updatedBuildpacks})
 		if err != nil {
-			log.Printf("Unable to render e-mail for %s: %s\n", user, err)
+			slog.Info("Unable to render e-mail for %s: %s", user, err)
 			continue
 		}
 		// Send email
@@ -216,10 +223,10 @@ func sendNotifyEmailToUsers(users map[string][]notifyApp, updatedBuildpacks []bu
 			subj := "Action required: restage your application(s)"
 			err := mailer.SendEmail(user, subj, body.Bytes())
 			if err != nil {
-				log.Printf("Unable to send e-mail to %s\n", user)
+				slog.Info(fmt.Sprintf("Unable to send e-mail to %s", user))
 				continue
 			}
 		}
-		fmt.Printf("Sent e-mail to %s\n", user)
+		fmt.Printf("Sent e-mail to %s", user)
 	}
 }
