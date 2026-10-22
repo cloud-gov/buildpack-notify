@@ -41,11 +41,11 @@ func TestEmptyStringReturnedForUnknownBuildpack(t *testing.T) {
 	}
 }
 
-func TestParseBuildpackVersion(t *testing.T) {
+func TestParseSystemBuildpackVersion(t *testing.T) {
 	testBuildpackFileName := "python_buildpack-cflinuxfs3-v1.7.43.zip"
 	expectedBuildpackVersion := "v1.7.43"
 
-	buildpackVersion, err := parseBuildpackVersion(testBuildpackFileName)
+	buildpackVersion, err := parseSystemBuildpackVersion(testBuildpackFileName)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -54,29 +54,16 @@ func TestParseBuildpackVersion(t *testing.T) {
 	}
 }
 
-func TestParseBuildpackVersionMoreDashes(t *testing.T) {
+func TestParseSystemBuildpackVersionMoreDashes(t *testing.T) {
 	testBuildpackFileName := "php-buildpack-cflinuxfs3-v4.4.49.zip"
 	expectedBuildpackVersion := "v4.4.49"
 
-	buildpackVersion, err := parseBuildpackVersion(testBuildpackFileName)
+	buildpackVersion, err := parseSystemBuildpackVersion(testBuildpackFileName)
 	if err != nil {
 		t.Fatal(err)
 	}
 	if buildpackVersion != expectedBuildpackVersion {
 		t.Errorf("The buildpack version for %s was not parsed correctly; expected %s", testBuildpackFileName, expectedBuildpackVersion)
-	}
-}
-
-func TestParseBuildpackVersionGitRepo(t *testing.T) {
-	testBuildpackFileName := "https://github.com/cloudfoundry/python-buildpack.git#v1.8.38"
-	expectedBuildpackVersion := "v1.8.38"
-
-	buildpackVersion, err := parseBuildpackVersion(testBuildpackFileName)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if buildpackVersion != expectedBuildpackVersion {
-		t.Errorf("The buildpack version for %s was not parsed correctly; expected %s, got %s", testBuildpackFileName, expectedBuildpackVersion, buildpackVersion)
 	}
 }
 
@@ -87,9 +74,14 @@ func TestBuildpackVersionURL(t *testing.T) {
 
 	buildpackVersionURL := getBuildpackVersionURL(testBuildpackReleaseURL, testBuildpackVersion)
 
-	if buildpackVersionURL != expectedVersionURL {
-		t.Errorf("The buildpack version URL for %s (%s) was not built correctly; expected %s", testBuildpackReleaseURL, testBuildpackVersion, expectedVersionURL)
-	}
+	assert.Equal(t, expectedVersionURL, buildpackVersionURL)
+
+	testBuildpackReleaseURL = "https://github.com/cloudfoundry/python-buildpack/releases"
+	testBuildpackVersion = "v1.8"
+	expectedVersionURL = "https://github.com/cloudfoundry/python-buildpack/releases/tag/v1.8"
+	buildpackVersionURL = getBuildpackVersionURL(testBuildpackReleaseURL, testBuildpackVersion)
+
+	assert.Equal(t, expectedVersionURL, buildpackVersionURL)
 }
 
 func TestBuildpackVersionURLWithBadVersion(t *testing.T) {
@@ -161,10 +153,15 @@ func TestIsBuildpackSupported(t *testing.T) {
 			},
 		},
 		{
-			"invalid git repo pinned version",
+			"pinned git repo version with shorter version",
 			resource.DetectedBuildpack{Name: "https://github.com/cloudfoundry/python-buildpack.git#v1.8"},
-			false,
-			&buildpackInfo{},
+			true,
+			&buildpackInfo{
+				source: BUILDPACK_GIT_PINNED,
+				supportedBuildpack: &resource.Buildpack{
+					Name: "python_buildpack",
+				},
+			},
 		},
 		{
 			"pinned git repo sha",
@@ -238,6 +235,13 @@ func TestIsDropletUsingOutdatedBuildpack(t *testing.T) {
 			"v1.2.4",
 			false,
 		},
+		{
+			"pinned git reference is invalid",
+			&resource.DetectedBuildpack{Name: "https://gitlab.com/cloudfoundry/python-buildpack.git#v1.2.3"},
+			BUILDPACK_GIT_PINNED,
+			"v1.2.4",
+			false,
+		},
 	}
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -258,4 +262,11 @@ func TestGetPinnedGitRepoBuildpackName(t *testing.T) {
 	assert.Equal(t, getPinnedGitRepoBuildpackName("https://github.com/cloudfoundry/python-buildpack.git#v1.8.38"), "python_buildpack")
 	assert.Equal(t, getPinnedGitRepoBuildpackName("https://github.com/cloudfoundry/foobar-buildpack.git#v1.2.3"), "foobar_buildpack")
 	assert.Equal(t, getPinnedGitRepoBuildpackName("php-buildpack-cflinuxfs3-v4.4.49.zip"), "")
+}
+
+func TestGetPinnedGitRepoBuildpackVersion(t *testing.T) {
+	assert.Equal(t, getPinnedGitRepoBuildpackVersion("https://github.com/cloudfoundry/python-buildpack.git#v1.8.38"), "v1.8.38")
+	assert.Equal(t, getPinnedGitRepoBuildpackVersion("https://github.com/cloudfoundry/foobar-buildpack.git#v1.2.3"), "v1.2.3")
+	assert.Equal(t, getPinnedGitRepoBuildpackVersion("https://github.com/cloudfoundry/foobar-buildpack.git#v19.1"), "v19.1")
+	assert.Equal(t, getPinnedGitRepoBuildpackVersion("php-buildpack-cflinuxfs3-v4.4.49.zip"), "")
 }

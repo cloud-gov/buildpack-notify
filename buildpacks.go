@@ -12,7 +12,7 @@ import (
 
 var (
 	buildpackZipFileRegex = regexp.MustCompile(`^[a-z]+(_|-)buildpack(_|-)cflinuxfs[0-9]{1}(_|-)(v[0-9]+.[0-9]+.[0-9]+).zip$`)
-	buildpackGitRepoRegex = regexp.MustCompile(`^https://github.com/cloudfoundry/([a-z]+-buildpack).git#(v[0-9]+.[0-9]+.[0-9]+)$`)
+	buildpackGitRepoRegex = regexp.MustCompile(`^https://github.com/cloudfoundry/([a-z]+-buildpack).git#(v[0-9]+.[0-9]+(.[0-9]+)?)$`)
 )
 
 type buildpackReleaseInfo struct {
@@ -44,10 +44,6 @@ type buildpackInfo struct {
 	supportedBuildpack *resource.Buildpack
 }
 
-func getSupportedBuildpackFilenameRegexes() []*regexp.Regexp {
-	return []*regexp.Regexp{buildpackZipFileRegex, buildpackGitRepoRegex}
-}
-
 func isBuildpackFilenamePinnedToGitRepo(buildpackFilename string) bool {
 	return buildpackGitRepoRegex.Match([]byte(buildpackFilename))
 }
@@ -57,7 +53,7 @@ func getPinnedGitRepoBuildpackName(buildpackFilename string) string {
 	if len(match) == 0 {
 		return ""
 	}
-	return strings.ReplaceAll(match[len(match)-2], "-", "_")
+	return strings.ReplaceAll(match[len(match)-3], "-", "_")
 }
 
 func getPinnedGitRepoBuildpackVersion(buildpackFilename string) string {
@@ -65,7 +61,7 @@ func getPinnedGitRepoBuildpackVersion(buildpackFilename string) string {
 	if len(match) == 0 {
 		return ""
 	}
-	return match[len(match)-1]
+	return match[len(match)-2]
 }
 
 func getBuildpackReleaseURL(buildpackName string) string {
@@ -99,23 +95,21 @@ func getBuildpackReleaseURL(buildpackName string) string {
 	return ""
 }
 
-func parseBuildpackVersion(buildpackFileName string) (string, error) {
+func parseSystemBuildpackVersion(buildpackFileName string) (string, error) {
 	// Takes a buildpack file name and parses out the version number from it.
 	// Buildpack filenames currently look like this: python_buildpack-cflinuxfs3-v1.7.43.zip
 	// "v1.7.43" is the version in this case.
 
-	for _, regex := range getSupportedBuildpackFilenameRegexes() {
-		if regex.Match([]byte(buildpackFileName)) {
-			match := regex.FindStringSubmatch(buildpackFileName)
-			if len(match) == 0 {
-				return "", errors.New("could not parse version")
-			}
-			version := match[len(match)-1]
-			if !semver.IsValid(version) {
-				return "", fmt.Errorf("%s is not a valid semantic version", version)
-			}
-			return version, nil
+	if buildpackZipFileRegex.Match([]byte(buildpackFileName)) {
+		match := buildpackZipFileRegex.FindStringSubmatch(buildpackFileName)
+		if len(match) == 0 {
+			return "", errors.New("could not parse version")
 		}
+		version := match[len(match)-1]
+		if !semver.IsValid(version) {
+			return "", fmt.Errorf("%s is not a valid semantic version", version)
+		}
+		return version, nil
 	}
 
 	return "", fmt.Errorf("unsupported filename: %s", buildpackFileName)
@@ -130,10 +124,7 @@ func getBuildpackVersionURL(buildpackReleaseURL string, buildpackVersion string)
 
 	// Check to make sure that the buildpackVersion matches the format of
 	// vX.Y[.Z], e.g.: v1.7.43 or v1.6
-	versionRe := regexp.MustCompile(`^v[0-9]+\.[0-9]+(\.[0-9]+)?$`)
-	versionMatch := versionRe.FindAllString(buildpackVersion, -1)
-
-	if versionMatch != nil {
+	if semver.IsValid(buildpackVersion) {
 		buildpackVersionURL = buildpackReleaseURL + buildpackVersionPath + buildpackVersion
 	}
 
@@ -196,12 +187,16 @@ func isDropletBuildpackOutdated(
 		dropletBuildpackVersion = getPinnedGitRepoBuildpackVersion(dropletBuildpack.Name)
 	}
 
+	if dropletBuildpackVersion == "" {
+		return false
+	}
+
 	res := semver.Compare(dropletBuildpackVersion, supportedBuildpackVersion)
 	return res == -1
 }
 
 func getBuildpackReleaseInfo(buildpack *resource.Buildpack) (*buildpackReleaseInfo, error) {
-	version, err := parseBuildpackVersion(*buildpack.Filename)
+	version, err := parseSystemBuildpackVersion(*buildpack.Filename)
 	if err != nil {
 		return nil, err
 	}
