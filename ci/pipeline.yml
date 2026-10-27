@@ -57,7 +57,7 @@ resources:
 - name: check-buildpack-updates
   type: time
   source:
-    interval: 60m
+    interval: 24h
 
 - name: notify-src
   type: git
